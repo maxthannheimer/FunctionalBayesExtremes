@@ -9,9 +9,94 @@ function vario(x::Vector{Float64},param::Parameter)::Float64
         )^param.β
 end
 
-""" covariance function for two locations x and y 
- c⋅||x-x0||^β + c⋅||y-x0||^β -c⋅||x-y||^β """
-function cov_fun_vario(param::Parameter,x::Vector{Float64},y::Vector{Float64},grid::Grid)::Float64
-    return vario(x-grid.coord_x0,param) + vario(y-grid.coord_x0,param)-vario(x-y,param)
+""" vectorized version of the variogram function, for all grid points, normalized in x0. 
+ c⋅||x-x0||^β for each location in coord_fine """
+using LinearAlgebra
+function vec_vario_grid(;param::Parameter,grid::Grid)::Vector{Float64}
+     param.c.*norm.(eachrow(grid.coord_fine.-grid.coord_x0')).^param.β
 end
 
+""" vectorized version of the variogram function, for all grid points. 
+ c⋅||x-x0||^β for each location in coord_vec, normalized in coord_x0 """
+function vec_vario(;param::Parameter,coord_vec::Matrix{Float64},coord_x0::Vector{Float64})::Vector{Float64}
+     param.c.*norm.(eachrow(coord_vec.-coord_x0')).^param.β
+end
+
+param=Parameter(α=1.0, β=2.0, c=3.0)
+grid=Grid()
+grid.gridsize
+vec_vario_grid(param=param,grid=grid)
+vec_vario(param=param,coord_vec=grid.coord_fine,coord_x0=grid.coord_x0)
+
+""" covariance function for two locations x and y 
+ c⋅||x-x0||^β + c⋅||y-x0||^β -c⋅||x-y||^β , normalized in x0 """
+function cov_fun_vario(param::Parameter,coord_a::Vector{Float64},coord_b::Vector{Float64},coord_x0::Vector{Float64})::Float64
+    return vario(coord_a-coord_x0,param) + vario(coord_b-coord_x0,param)-vario(coord_a-coord_b,param)
+end
+
+ 
+"""calculate cov matrix for two matrices of coordinates and the variogramm given via param and normalized at x0"""
+function cov_mat_for_vectors(coord_mat_a::Matrix{Float64}, coord_mat_b::Matrix{Float64}, param::Parameter, coord_x0::Vector{Float64})::Matrix{Float64}
+    Nx=size(coord_mat_a,1)
+    Ny=size(coord_mat_b,1)
+    cov_mat=ones(Nx,Ny)
+    for ix in 1:Nx
+        for jy in 1:Ny
+            cov_mat[ix,jy]=cov_fun_vario(param,coord_mat_a[ix,:], coord_mat_b[jy,:], coord_x0 )  
+            #second implementation to check if everything works
+            #cov_mat[ix,jy]=vario(coord_mat_a[ix,:]-coord_x0,param)+vario(coord_mat_b[jy,:]-coord_x0,param)-vario(coord_mat_a[ix,:]-coord_mat_b[jy,:],param)
+        end
+    end
+    cov_mat
+end
+
+
+""" simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
+#simulate numrep many exp(1/α[G(s)-G(x0)-γ(s-x0)])"""
+function r_log_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
+    res = FBM_simu_fast(param=param, grid=grid, num_sim=num_sim)
+    trend=vec_vario_grid(param=param,grid=grid)
+    for i in 1:num_sim
+            res[i] = exp.(1/param.α*(res[i] - trend .-res[i][grid.x0])) #variogram
+    end
+    res
+end
+
+""" simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
+simulate numrep many 1/α[G(s)-G(x0)-γ(s-x0)] """
+function r_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
+    res = FBM_simu_fast(param=param, grid=grid, num_sim=num_sim)
+    trend=vec_vario_grid(param=param,grid=grid)
+    for i in 1:num_sim
+            res[i] = 1/param.α*(res[i] - trend .-res[i][grid.x0])#variogram
+    end
+    res
+end
+
+
+""" conditional gaussian simulation (conditioning on the coarse grid observations)"""
+function r_cond_log_gaussian(param::Parameter,grid::Grid,num_sim::Int,cond_obs::Matrix{Float64},cond_obs_x0::Vector{Float64}) #coord_x0 (hier c egal)
+    #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
+    gridsize = Int(sqrt(size(grid.coord_fine,1)))
+    coord_cond_rows = get_common_rows_indices(grid.coord_fine,floor.(grid.coord_coarse.*gridsize)./gridsize)
+    coord_cond=grid.coord_fine[coord_cond_rows,:]
+    
+    sigma_yy_inv = inv(cov_mat_for_vectors(grid.coord_coarse,grid.coord_coarse,  param, grid.coord_x0)) #hier 
+    sigma_zy= cov_mat_for_vectors(grid.coord_coarse, grid.coord_fine,param,grid.coord_x0)'   
+    res=[r_gaussian_vec(grid.coord_fine,param,grid.coord_x0,num_sim,alpha) for j in 1:size(cond_obs,1)]
+    for j in 1:size(cond_obs,1)
+        for i in 1:num_sim
+            log_normalized_coarse_observation = log.(cond_obs[j,:]./cond_obs_x0[j])
+            res[j][i] = exp.(res[j][i] + sigma_zy*(sigma_yy_inv*(log_normalized_coarse_observation-res[j][i][coord_cond_rows]))) #variogram
+        end
+    end
+    res
+end
+#add observation and use it for cond sim
+grid.coord_fine
+grid.coord_coarse
+grid.coord_x0
+grid.x0
+
+grid_test=Grid(gridsize=10, N_coarse=5)
+grid_test.rows_coord_coarse

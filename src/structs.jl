@@ -12,7 +12,7 @@ struct Parameter
     end
 end
 #testing Parameter struct
-p=Parameter(α=1.0, β=2.0, c=3)
+p=Parameter(α=1.0, β=2.0, c=3.0)
 
 
 """ Struct for the Observation Simulation. """
@@ -21,6 +21,7 @@ struct Grid
     N_coarse::Int
     coord_fine::Matrix{Float64}
     coord_coarse::Matrix{Float64}
+    rows_coord_coarse::Vector{Int}
     x0::Int
     coord_x0::Vector{Float64}
     function Grid(;gridsize::Int, N_coarse::Int)
@@ -31,9 +32,12 @@ struct Grid
                 coord_fine[y+x*gridsize+1,1] = y/(gridsize)
             end
         end
-        coord_coarse = rand(N_coarse,2).*(gridsize-1)/gridsize
-        x0 = rand(1:gridsize^2)
-        new(gridsize, N_coarse, coord_fine, coord_coarse, x0,coord_fine[x0,:])
+        rows_coord_coarse_and_x0 = sample(1:gridsize^2,N_coarse+1,replace=false)
+        rows_coord_coarse = rows_coord_coarse_and_x0[2:end]
+        coord_coarse = coord_fine[rows_coord_coarse,:]
+        x0 = rows_coord_coarse_and_x0[1] # index of the normalization point
+        coord_x0 = coord_fine[x0,:]
+        new(gridsize, N_coarse, coord_fine, coord_coarse, rows_coord_coarse, x0,coord_x0)
     end
     function Grid()
         gridsize=9
@@ -45,10 +49,10 @@ struct Grid
                 coord_fine[y+x*gridsize+1,1]=y/(gridsize)
             end
         end
-        coord_cond_rows = [11,14,17,38,44,65,68,71]
-        coord_coarse = coord_fine[coord_cond_rows,:]
+        rows_coord_coarse = [11,14,17,38,44,65,68,71]
+        coord_coarse = coord_fine[rows_coord_coarse,:]
         x0 = 41 # index of the normalization point
-        new(gridsize, N_coarse, coord_fine, coord_coarse, x0,coord_fine[x0,:])
+        new(gridsize, N_coarse, coord_fine, coord_coarse, rows_coord_coarse, x0,coord_fine[x0,:])
     end
 end
 

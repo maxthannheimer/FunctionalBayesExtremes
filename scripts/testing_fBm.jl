@@ -1,0 +1,56 @@
+using DrWatson
+@quickactivate "FunctionalBayesExtremes"
+
+
+param=Parameter(α=1.0, β=2.0, c=3.0)
+grid=Grid()
+
+num_sim=100000
+FBM_res=FBM_simu_fast(param=param,grid=grid,num_sim=num_sim)
+FBM_covmat_res=fBm(param=param,grid=grid,num_sim=num_sim)
+emp_cov_mat=zeros(grid.gridsize^2,grid.gridsize^2)
+emp_cov_mat2=zeros(grid.gridsize^2,grid.gridsize^2)
+true_cov_mat=zeros(grid.gridsize^2,grid.gridsize^2)
+mean_vec=zeros(grid.gridsize^2)
+
+for i in 1:grid.gridsize^2
+    mean_vec[i]=mean([FBM_res[rep][i] for rep in 1:num_sim])
+end
+
+for row in 1:grid.gridsize^2
+    for col in 1:grid.gridsize^2
+        emp_cov_mat[row,col]=1/(num_sim-1)*sum([(FBM_res[rep][row]-mean_vec[row])*(FBM_res[rep][col]-mean_vec[col]) for rep in 1:num_sim])
+    end
+end
+
+
+
+for row in 1:grid.gridsize^2
+    for col in 1:grid.gridsize^2
+        emp_cov_mat2[row,col]=1/(num_sim-1)*sum([(FBM_covmat_res[rep][row]-mean_vec[row])*(FBM_covmat_res[rep][col]-mean_vec[col]) for rep in 1:num_sim])
+    end
+end
+
+
+
+for row in 1:grid.gridsize^2
+    for col in 1:grid.gridsize^2
+        true_cov_mat[row,col]=param.c*(norm(grid.coord_fine[row,:])^param.β+norm(grid.coord_fine[col,:])^param.β-norm(grid.coord_fine[row,:]-grid.coord_fine[col,:])^param.β)
+    end
+end
+
+
+safesave(datadir("cov_mat_simulations", savename("FBM_empircical_covmat",num_sim,"jld2")), "emp_cov_mat",emp_cov_mat,"emp_cov_mat2",emp_cov_mat2,"true_cov_mat",true_cov_mat,"param",param,"grid",grid)
+load(datadir("cov_mat_simulations", savename("FBM_empircical_covmat",num_sim,"jld2")), "emp_cov_mat", "emp_cov_mat2", "true_cov_mat", "param", "grid")
+
+
+
+
+
+
+maximum(
+    abs.((emp_cov_mat-true_cov_mat)  )#./(true_cov_mat.+10^(-8)))
+    )
+maximum(
+    abs.((emp_cov_mat2-true_cov_mat) )#./(true_cov_mat.+10^(-8)))
+    )
