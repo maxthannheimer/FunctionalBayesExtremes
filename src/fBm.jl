@@ -7,7 +7,6 @@ using LinearAlgebra
 
 """ Standard way to generate fBm samples, should work for small Grids. For later comparison and coarse grid simulations. """
 function fBm(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector{Float64}}
-    H = param.β / 2
     c_sqrt=sqrt(param.c)
     # Generate the covariance matrix
     N = grid.gridsize^2   
@@ -15,7 +14,7 @@ function fBm(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector{Float64}}
     tx = grid.coord_fine  #grid points in x and y
     for i in 1:N
         for j in 1:N
-            cov_matrix[i, j] =  (norm(grid.coord_fine[i,:] )^H + norm(grid.coord_fine[j,:] )^H - norm(grid.coord_fine[i,:] - grid.coord_fine[j,:])^H).+1e-6 
+            cov_matrix[i, j] =  (norm(grid.coord_fine[i,:] )^param.β + norm(grid.coord_fine[j,:] )^param.β - norm(grid.coord_fine[i,:] - grid.coord_fine[j,:])^param.β).+5*1e-6 
         end
     end
 
@@ -30,11 +29,11 @@ function fBm(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector{Float64}}
 end
 
 """ Analog to fft2 function from matlab, but for 2D arrays. """
-function fft2d(arr::Matrix{ComplexF64})::Matrix{ComplexF64}
+function fft2d(arr)
     return fft(fft(arr, 1), 2)
 end     
 
-function fft2(A::Matrix{ComplexF64})::Matrix{ComplexF64}
+function fft2(A)
     # Apply 1D FFT along each dimension
     fft_rows = fft(A, 1)
     fft_cols = fft(fft_rows, 2)
@@ -139,4 +138,4 @@ grid=Grid()
 
 num_sim=100
 FBM_res=FBM_simu_fast(param=param,grid=grid,num_sim=num_sim)
-FBM_covmat_res=fBm(param,grid,num_sim)
+FBM_covmat_res=fBm(param=param,grid=grid,num_sim=num_sim)

@@ -63,7 +63,18 @@ grid=Grid()
 grid.coord_fine
 
 
-
+struct Observation
+    sim_data::Matrix{Float64}
+    obs_data::Matrix{Float64}
+    obs_x0::Vector{Float64}
+    function Observation(;sim_data::Matrix{Float64}, obs_data::Matrix{Float64}, obs_x0::Vector{Float64})
+        new(sim_data, obs_data, obs_x0)
+    end
+    function Observation(;param::Parameter, grid::Grid, num_runs::Int, num_sim::Int)
+        sim_data, obs_data, obs_x0 = simulate_pareto_process(param=param, grid=grid, num_runs=num_runs, num_sim=num_sim)
+        new(sim_data, obs_data, obs_x0)
+    end
+end
 
 struct Sum
     sumand::Float64
