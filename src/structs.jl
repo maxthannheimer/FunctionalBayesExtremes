@@ -1,5 +1,6 @@
 """ Here different structs are defined, which are used in the rest of the code. """
 
+export Parameter, Grid, Observation
 
 """ Struct for the parameters of the model. """
 struct Parameter
@@ -12,7 +13,7 @@ struct Parameter
     end
 end
 #testing Parameter struct
-p=Parameter(α=1.0, β=2.0, c=3.0)
+#p=Parameter(α=1.0, β=2.0, c=3.0)
 
 
 """ Struct for the Observation Simulation. """
@@ -58,9 +59,9 @@ end
 
 
 #Testing Grid struct
-grid=Grid(gridsize=10, N_coarse=5)
-grid=Grid()
-grid.coord_fine
+#grid=Grid(gridsize=10, N_coarse=5)
+#grid=Grid()
+#grid.coord_fine
 
 
 struct Observation
@@ -75,13 +76,3 @@ struct Observation
         new(sim_data, obs_data, obs_x0)
     end
 end
-
-struct Sum
-    sumand::Float64
-    a::Float64
-    function Sum(;a,b)
-         new(a+b,a)
-    end
-end
-Sum(a=1.0, b=2.0).a
-

@@ -26,11 +26,11 @@ function vec_vario(;param::Parameter,coord_vec::Matrix{Float64},coord_x0::Vector
      param.c.*norm.(eachrow(coord_vec.-coord_x0')).^param.β
 end
 
-param=Parameter(α=1.0, β=2.0, c=3.0)
-grid=Grid()
-grid.gridsize
-vec_vario_grid(param=param,grid=grid)
-vec_vario(param=param,coord_vec=grid.coord_fine,coord_x0=grid.coord_x0)
+#param=Parameter(α=1.0, β=2.0, c=3.0)
+#grid=Grid()
+#grid.gridsize
+#vec_vario_grid(param=param,grid=grid)
+#vec_vario(param=param,coord_vec=grid.coord_fine,coord_x0=grid.coord_x0)
 
 """ covariance function for two locations x and y 
  c⋅||x-x0||^β + c⋅||y-x0||^β -c⋅||x-y||^β , normalized in x0 """
@@ -38,7 +38,7 @@ function cov_fun_vario(;param::Parameter,coord_a::Vector{Float64},coord_b::Vecto
     return vario(coord_a-coord_x0,param) + vario(coord_b-coord_x0,param)-vario(coord_a-coord_b,param)
 end
 
-cov_fun_vario(param=param,coord_a=grid.coord_fine[5,:],coord_b=grid.coord_fine[2,:],coord_x0=grid.coord_x0)
+#cov_fun_vario(param=param,coord_a=grid.coord_fine[5,:],coord_b=grid.coord_fine[2,:],coord_x0=grid.coord_x0)
 
 
 """calculate cov matrix for two matrices of coordinates and the variogramm given via param and normalized at x0"""
@@ -56,8 +56,8 @@ function cov_mat_for_vectors(;coord_mat_a::Matrix{Float64}, coord_mat_b::Matrix{
     cov_mat
 end
 
-cov_fun_vario(param=param,coord_a=grid.coord_fine[1,:], coord_b=grid.coord_fine[2,:], coord_x0=grid.coord_x0 )  
-cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)
+#cov_fun_vario(param=param,coord_a=grid.coord_fine[1,:], coord_b=grid.coord_fine[2,:], coord_x0=grid.coord_x0 )  
+#cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)
 
 """ simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
 #simulate numrep many exp(1/α[G(s)-G(x0)-γ(s-x0)])"""
@@ -101,10 +101,10 @@ end
 
 #TODO: simulate conditional on random data and see if the empirical covariance is identical
 #add observation and use it for cond sim
-grid.coord_fine
-grid.coord_coarse
-grid.coord_x0
-grid.x0
+#grid.coord_fine
+#grid.coord_coarse
+#grid.coord_x0
+#grid.x0
 
-grid_test=Grid(gridsize=10, N_coarse=5)
-grid_test.rows_coord_coarse
+#grid_test=Grid(gridsize=10, N_coarse=5)
+#grid_test.rows_coord_coarse

@@ -5,6 +5,7 @@ using FFTW
 using Distributions
 using LinearAlgebra
 
+
 """ Standard way to generate fBm samples, should work for small Grids. For later comparison and coarse grid simulations. """
 function fBm(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector{Float64}}
     c_sqrt=sqrt(param.c)
@@ -133,9 +134,9 @@ end
 
 
 
-param=Parameter(α=1.0, β=2.0, c=3.0)
-grid=Grid()
+#param=Parameter(α=1.0, β=2.0, c=3.0)
+#grid=Grid()
 
-num_sim=100
-FBM_res=FBM_simu_fast(param=param,grid=grid,num_sim=num_sim)
-FBM_covmat_res=fBm(param=param,grid=grid,num_sim=num_sim)
+#num_sim=100
+#FBM_res=FBM_simu_fast(param=param,grid=grid,num_sim=num_sim)
+#FBM_covmat_res=fBm(param=param,grid=grid,num_sim=num_sim)

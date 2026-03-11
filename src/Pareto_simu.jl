@@ -19,7 +19,7 @@ end
 
 #TODO calculate extremal dependence/upper tail dependence coefficient
 
-simu_specfcts_MCMC(param=param, grid=grid, num_runs=1000)
+#simu_specfcts_MCMC(param=param, grid=grid, num_runs=1000)
 
 function simulate_pareto_process(;param::Parameter, grid::Grid, num_runs::Int, num_sim::Int)#::Vector{Vector{Float64}}
     sim_data = [simu_specfcts_MCMC(param=param, grid=grid, num_runs=num_runs) for i in 1:num_sim]
@@ -31,9 +31,9 @@ end
 
 
 
-sim_data, obs_data, obs_x0 = simulate_pareto_process(param=param, grid=grid, num_runs=num_runs, num_sim=num_sim)
-obs=Observation(param=param, grid=grid, num_runs=1000, num_sim=100)
+#sim_data, obs_data, obs_x0 = simulate_pareto_process(param=param, grid=grid, num_runs=num_runs, num_sim=num_sim)
+#obs=Observation(param=param, grid=grid, num_runs=1000, num_sim=100)
 
-obs.sim_data
-obs.obs_data
-obs.obs_x0
+#obs.sim_data
+#obs.obs_data
+#obs.obs_x0
