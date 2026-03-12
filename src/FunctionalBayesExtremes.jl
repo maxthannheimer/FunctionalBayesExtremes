@@ -1,4 +1,4 @@
-module FBE
+module FunctionalBayesExtremes
 using DrWatson
 
 include("structs.jl")
