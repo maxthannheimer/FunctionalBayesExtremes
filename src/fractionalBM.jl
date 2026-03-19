@@ -47,7 +47,7 @@ end
 """ modified cov function """
 function rho(x,y,R,a)
     #embedding of covariance function on a larger [0,R] × [0,R] Grid
-    if a<=1.5 #alpha=2 Hurst param TODO: check if this is correct, literature says a<=1.5, we used a<=1.1
+    if a<1.5 #alpha=2 Hurst param TODO: check if this is correct, literature says a<=1.5, we used a<=1.1
         beta=0
         c_2=a/2
         c_0=1-a/2
@@ -77,7 +77,7 @@ function FBM_simu_fast(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector
     gridsize=grid.gridsize
     c_sqrt=sqrt(param.c)
     H=param.β/2 #Hurst Param
-    if param.β<=1.5 #TODO: check if this is correct, literature says a<=1.5, we used a<=1.1
+    if param.β<1.5 #TODO: check if this is correct, literature says a<=1.5, we used a<=1.1
         R=1
     else
         R=2 #expanded gridsize, region of interest is [0,1]×[0.1]

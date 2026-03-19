@@ -59,6 +59,9 @@ for (i,d) in enumerate(dicts)
     f = makesim(d)
     wsave(datadir("simulations", "sim_$(i).jld2"), f)
 end
+safesave(datadir("ana", "linear.jld2"), @strdict analysis)
+
+
 readdir(datadir("simulations"))
 
 #savename is a helper function that generates a filename based on the parameters of the simulation by itself

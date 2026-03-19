@@ -1,9 +1,9 @@
 """ Testing fractional Brownian motion simulation by calculating the empirical covariance matrix and comparing it to the true covariance matrix. """
 
 using DrWatson
-@quickactivate "FunctionalBayesExtremes"
+@quickactivate :FunctionalBayesExtremes
 
-using .FBE
+using .FunctionalBayesExtremes
 
 #Import needed functions FBM_simu_fast and fBm for testing them
 
@@ -13,10 +13,10 @@ grid=Grid()
 
 
 #simulate num_sim many fBm samples and calculate empirical covariance matrix, compare to true covariance matrix
-num_sim=100000
+num_sim=100
 
 #circulant embedding method
-FBM_res=FBM_simu_fast(param=param,grid=grid,num_sim=num_sim)
+FBM_res=FunctionalBayesExtremes.FBM_simu_fast(param=param,grid=grid,num_sim=num_sim)
 emp_cov_mat=zeros(grid.gridsize^2,grid.gridsize^2)
 mean_vec=zeros(grid.gridsize^2)
 

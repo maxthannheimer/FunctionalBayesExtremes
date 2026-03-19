@@ -2,10 +2,10 @@
 
 """ variogram of the process 
  c⋅||x||^β """
-function vario(x::Vector{Float64},param::Parameter)::Float64
+function vario(;coord::Vector{Float64},param::Parameter)::Float64
     return param.c*sqrt(
-        (x[1])^2
-        + (x[2])^2
+        (coord[1])^2
+        + (coord[2])^2
         )^param.β
 end
 
@@ -35,7 +35,7 @@ end
 """ covariance function for two locations x and y 
  c⋅||x-x0||^β + c⋅||y-x0||^β -c⋅||x-y||^β , normalized in x0 """
 function cov_fun_vario(;param::Parameter,coord_a::Vector{Float64},coord_b::Vector{Float64},coord_x0::Vector{Float64})::Float64
-    return vario(coord_a-coord_x0,param) + vario(coord_b-coord_x0,param)-vario(coord_a-coord_b,param)
+    return vario(coord=coord_a-coord_x0,param=param) + vario(coord=coord_b-coord_x0,param=param)-vario(coord=coord_a-coord_b,param=param)
 end
 
 #cov_fun_vario(param=param,coord_a=grid.coord_fine[5,:],coord_b=grid.coord_fine[2,:],coord_x0=grid.coord_x0)
