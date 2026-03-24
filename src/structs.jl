@@ -1,6 +1,7 @@
 """ Here different structs are defined, which are used in the rest of the code. """
 
-export Parameter, Grid, Observation
+using StatsBase
+export Parameter, default_Grid, Grid, Observation
 
 """ Struct for the parameters of the model. """
 struct Parameter
@@ -25,7 +26,9 @@ struct Grid
     rows_coord_coarse::Vector{Int}
     x0::Int
     coord_x0::Vector{Float64}
-    function Grid(;gridsize::Int, N_coarse::Int)
+end
+
+function Grid(;gridsize::Int, N_coarse::Int)
         coord_fine = ones(gridsize*gridsize,2)
         for x in 0:(gridsize-1) 
             for y in 0:(gridsize-1)
@@ -38,9 +41,10 @@ struct Grid
         coord_coarse = coord_fine[rows_coord_coarse,:]
         x0 = rows_coord_coarse_and_x0[1] # index of the normalization point
         coord_x0 = coord_fine[x0,:]
-        new(gridsize, N_coarse, coord_fine, coord_coarse, rows_coord_coarse, x0,coord_x0)
-    end
-    function Grid()
+        Grid(gridsize, N_coarse, coord_fine, coord_coarse, rows_coord_coarse, x0,coord_x0)
+end
+
+function default_Grid()
         gridsize=9
         N_coarse=3
         coord_fine=ones(gridsize*gridsize,2)
@@ -53,10 +57,8 @@ struct Grid
         rows_coord_coarse = [11,14,17,38,44,65,68,71]
         coord_coarse = coord_fine[rows_coord_coarse,:]
         x0 = 41 # index of the normalization point
-        new(gridsize, N_coarse, coord_fine, coord_coarse, rows_coord_coarse, x0,coord_fine[x0,:])
-    end
+        Grid(gridsize, N_coarse, coord_fine, coord_coarse, rows_coord_coarse, x0,coord_fine[x0,:])
 end
-
 
 #Testing Grid struct
 #grid=Grid(gridsize=10, N_coarse=5)
@@ -68,10 +70,10 @@ struct Observation
     sim_data::Matrix{Float64}
     obs_data::Matrix{Float64}
     obs_x0::Vector{Float64}
-    function Observation(;sim_data::Matrix{Float64}, obs_data::Matrix{Float64}, obs_x0::Vector{Float64})
+    function Observation(sim_data::Matrix{Float64}, obs_data::Matrix{Float64}, obs_x0::Vector{Float64})
         new(sim_data, obs_data, obs_x0)
     end
-    function Observation(;param::Parameter, grid::Grid, num_runs::Int, num_sim::Int)
+    function Observation(;param::Parameter, grid::Grid, num_runs::Int, num_sim::Int) #TODO change to outer function with name simulate_observations since julia has problems with inner constructors and uninitialized keyword arguments 
         sim_data, obs_data, obs_x0 = simulate_pareto_process(param=param, grid=grid, num_runs=num_runs, num_sim=num_sim)
         new(sim_data, obs_data, obs_x0)
     end

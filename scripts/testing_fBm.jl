@@ -9,7 +9,7 @@ using .FunctionalBayesExtremes
 
 #define parameters and grid for testing
 param=Parameter(α=1.0, β=1.9, c=3.0)
-grid=Grid()
+grid=default_Grid()
 
 
 #simulate num_sim many fBm samples and calculate empirical covariance matrix, compare to true covariance matrix

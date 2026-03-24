@@ -21,9 +21,9 @@ allparams = Dict(
 dicts=dict_list(allparams)
 
 
-grid=Grid()
-num_sim=100 #-> 50000
-num_runs=2000
+grid=default_Grid()
+num_sim=10 #-> 50000
+num_runs=200
 # i,d= first(enumerate(dicts))
 # param=Parameter(α=d["α"], β=d["β"], c=d["c"])
 
@@ -43,8 +43,7 @@ quantile_lvl=0.95
 #threshold=10.0
 x_1_row=23
 x_2_row=47
-x_1_coord=grid.coord_fine[x_1_row,:]
-x_2_coord=grid.coord_fine[x_2_row,:]
+
 
 
 
