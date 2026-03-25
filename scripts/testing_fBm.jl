@@ -3,7 +3,6 @@
 using DrWatson
 @quickactivate :FunctionalBayesExtremes
 
-using .FunctionalBayesExtremes
 
 #Import needed functions FBM_simu_fast and fBm for testing them
 

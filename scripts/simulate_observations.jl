@@ -22,20 +22,20 @@ dicts=dict_list(allparams)
 
 
 grid=default_Grid()
-num_sim=10 #-> 50000
-num_runs=200
+num_sim=5000 #-> 50000
+num_runs=2000
 # i,d= first(enumerate(dicts))
 # param=Parameter(α=d["α"], β=d["β"], c=d["c"])
 
 
-
-for (i,d) in enumerate(dicts)
-    param=Parameter(α=d["α"], β=d["β"], c=d["c"])
-    println(param)
-    @time( (sim_data, obs_data, obs_x0) = FunctionalBayesExtremes.simulate_pareto_process(param=param, grid=grid, num_runs=num_runs, num_sim=num_sim))
-    sim_res = Dict("param" => param, "sim_data" => sim_data, "obs_data" => obs_data, "obs_x0" => obs_x0)
-    safesave(datadir("observations", "obs_$(num_sim)_$(i).jld2"), sim_res)
-end
+#TODO uncomment for simulation
+# for (i,d) in enumerate(dicts)
+#     param=Parameter(α=d["α"], β=d["β"], c=d["c"])
+#     println(param)
+#     @time( (sim_data, obs_data, obs_x0) = FunctionalBayesExtremes.simulate_pareto_process(param=param, grid=grid, num_runs=num_runs, num_sim=num_sim))
+#     sim_res = Dict("param" => param, "sim_data" => sim_data, "obs_data" => obs_data, "obs_x0" => obs_x0)
+#     safesave(datadir("observations", "obs_$(num_sim)_$(i).jld2"), sim_res)
+# end
 
 
 #using Distributions

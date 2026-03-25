@@ -62,6 +62,7 @@ end
 """ simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
 #simulate numrep many exp(1/α[G(s)-G(x0)-γ(s-x0)])"""
 function r_log_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
+    cov_mat=cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)
     res = FBM_simu_fast(param=param, grid=grid, num_sim=num_sim)
     trend=vec_vario_grid(param=param,grid=grid)
     for i in 1:num_sim
@@ -81,9 +82,42 @@ function r_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{
     res
 end
 
+function r_gaussian_sparse(;param::Parameter,coord_coarse::Matrix{Float64},coord_x0::Vector{Float64},num_sim::Int) :: Vector{Vector{Float64}}
+    N=size(coord_coarse,1)+1
+    cov_matrix = zeros(Float64, N, N)
+    coord_coarse_plus_x0 = vcat(coord_coarse, coord_x0')
+    #for i in 1:N
+     #   for j in 1:N
+      #      cov_matrix[i, j] =  param.c*((norm(coord_coarse_plus_x0[i,:])^param.β + norm(coord_coarse_plus_x0[j,:])^param.β - norm(coord_coarse_plus_x0[i,:] - coord_coarse_plus_x0[j,:])^param.β)).+1.0
+    #    end
+    #end
+    cov_matrix = cov_mat_for_vectors(coord_mat_a=coord_coarse_plus_x0, coord_mat_b=coord_coarse_plus_x0, param=param, coord_x0=coord_x0).+1.0
+    trend=vec_vario(param=param,coord_vec=coord_coarse_plus_x0,coord_x0=coord_x0)
+    
+    # Generate a sample from the multivariate normal distribution
+    mean_vector = zeros(Float64, N)
+    #return cov_matrix
+    res=[Vector{Float64}(undef,N) for i in 1:num_sim]
+    for i in 1:num_sim
+        res[i] = rand(MvNormal(mean_vector, cov_matrix))
+    end
+    for i in 1:num_sim
+            res[i] = 1/param.α*(res[i] - trend .-res[i][end])#variogram
+    end
+    #  res2=[Vector{Float64}(undef,N) for i in 1:num_sim]
+    # for i in 1:num_sim
+    #     res2[i] = rand(MvNormal(mean_vector, cov_matrix))
+    # end
+    # for i in 1:num_sim
+    #         res2[i] = 1/param.α*(res2[i] - trend .-res2[i][end])#variogram
+    # end
+    return res#cov_matrix,cov_matrix_2
+end
+
+
 
 """ conditional gaussian simulation (conditioning on the coarse grid observations)"""
-function r_cond_log_gaussian(;param::Parameter,grid::Grid,num_sim::Int,cond_obs::Matrix{Float64},cond_obs_x0::Vector{Float64}) #coord_x0 (hier c egal)
+function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,cond_obs::Vector{Vector{Float64}}) #coord_x0 (hier c egal)
     #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
     
     sigma_yy_inv = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param, coord_x0=grid.coord_x0 )) #hier 
@@ -92,8 +126,8 @@ function r_cond_log_gaussian(;param::Parameter,grid::Grid,num_sim::Int,cond_obs:
         #grid.coord_fine,param,grid.coord_x0,num_sim,alpha) for j in 1:size(cond_obs,1)]
     for j in 1:size(cond_obs,1)
         for i in 1:num_sim
-            log_normalized_coarse_observation = log.(cond_obs[j,:]./cond_obs_x0[j])
-            res[j][i] = exp.(res[j][i] + sigma_zy*(sigma_yy_inv*(log_normalized_coarse_observation-res[j][i][grid.rows_coord_coarse]))) #variogram
+            normalized_coarse_observation = cond_obs[j][1:end-1].-cond_obs[j][end]
+            res[j][i] =res[j][i] + sigma_zy*(sigma_yy_inv*(normalized_coarse_observation-res[j][i][grid.rows_coord_coarse])) #variogram
         end
     end
     res
