@@ -71,13 +71,23 @@ function r_log_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vec
     res
 end
 
+function r_log_gaussian_alpha(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
+    cov_mat=cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)
+    res = FBM_simu_fast(param=param, grid=grid, num_sim=num_sim)
+    trend=vec_vario_grid(param=param,grid=grid)
+    for i in 1:num_sim
+            res[i] = exp.(1/param.α*(res[i] - trend .-res[i][grid.x0])) #variogram
+    end
+    res
+end
+
 """ simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
 simulate numrep many 1/α[G(s)-G(x0)-γ(s-x0)] """
 function r_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
     res = FBM_simu_fast(param=param, grid=grid, num_sim=num_sim)
     trend=vec_vario_grid(param=param,grid=grid)
     for i in 1:num_sim
-            res[i] = 1/param.α*(res[i] - trend .-res[i][grid.x0])#variogram
+            res[i] = res[i] - trend .-res[i][grid.x0]#variogram
     end
     res
 end
@@ -102,8 +112,10 @@ function r_gaussian_sparse(;param::Parameter,coord_coarse::Matrix{Float64},coord
         res[i] = rand(MvNormal(mean_vector, cov_matrix))
     end
     for i in 1:num_sim
-            res[i] = 1/param.α*(res[i] - trend .-res[i][end])#variogram
+        res[i] = res[i] - trend .-res[i][end]   
+        #res[i] = 1/param.α*(res[i] - trend .-res[i][end])#variogram
     end
+    #TODO removed α here, maybe add it again afterwards, it still is in r_gaussian and r_log_gaussian
     #  res2=[Vector{Float64}(undef,N) for i in 1:num_sim]
     # for i in 1:num_sim
     #     res2[i] = rand(MvNormal(mean_vector, cov_matrix))
@@ -117,12 +129,13 @@ end
 
 
 """ conditional gaussian simulation (conditioning on the coarse grid observations)"""
+#TODO add standard Observation Object structure instead of cond_obs
 function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,cond_obs::Vector{Vector{Float64}}) #coord_x0 (hier c egal)
     #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
     
     sigma_yy_inv = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param, coord_x0=grid.coord_x0 )) #hier 
     sigma_zy= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)'   
-    res=[r_gaussian(param=param, grid=grid, num_sim=num_sim) for j in 1:size(cond_obs,1)]
+    res=[param.α.*r_gaussian(param=param, grid=grid, num_sim=num_sim) for j in 1:size(cond_obs,1)]
         #grid.coord_fine,param,grid.coord_x0,num_sim,alpha) for j in 1:size(cond_obs,1)]
     for j in 1:size(cond_obs,1)
         for i in 1:num_sim
@@ -133,12 +146,33 @@ function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,cond_obs::Vec
     res
 end
 
-#TODO: simulate conditional on random data and see if the empirical covariance is identical
-#add observation and use it for cond sim
-#grid.coord_fine
-#grid.coord_coarse
-#grid.coord_x0
-#grid.x0
 
-#grid_test=Grid(gridsize=10, N_coarse=5)
-#grid_test.rows_coord_coarse
+using Distributions
+
+#TODO finish with standard Observation Object structure
+function exceed_cond_sim_old(num_runs::Int,observation::Observation,threshold::Float64, param::Parameter, grid::Grid )
+    tmp = param.α.*exp.( r_cond_gaussian(param=param, grid=grid, num_sim=num_runs,cond_obs=observation.obs_data)) #TODO Check if cond log gaussian or cond gaussian is needed
+    res_ell_X = [0.0 for i in 1:num_obs] 
+
+   #old_value=r_cond_log_gaussian(observation_data[1,:],observation_x0[1], coord_fine,coord_coarse,param,row_x0)
+   for i in 1:num_obs #direkt num_obs viele simulations 
+        old_value = tmp[i][1]
+        for trial in 1:num_runs
+            proposal = tmp[i][trial+1]
+            acceptance_rate = min(1,mean(proposal)^param.α/mean(old_value)^param.α)   
+            if (rand()< acceptance_rate)
+                old_value=proposal
+            end
+        end
+        res_ell_X[i]=observation.obs_x0[i]*mean(old_value)
+    end
+    if sum(res_ell_X.>threshold)==0
+        Base._throw_argerror("not a single threshold exceedance")
+    else
+        #likelihood calculation and param updates
+        #find all threshold exccedances and calculate the log of them
+        ind=findall(res_ell_X.>threshold)
+        exceed_obs=Observation(sim_data=observation.sim_data, obs_data=observation.obs_data[ind,:], obs_x0=observation.obs_x0[ind])
+        (exceed_obs,res_ell_X)
+    end
+end

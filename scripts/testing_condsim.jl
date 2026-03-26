@@ -5,19 +5,10 @@ using LinearAlgebra
 
 """ Generate some observation data and save it to the data directory. """
 
-""" define parameters """
-allparams = Dict(
-    "α" => [0.5, 1.5],
-    "β" => [0.5, 1.5],
-    "c" => [0.5, 1.5],
-)
-
-""" create parameter dicts for all combinations of parameters """
-dicts=dict_list(allparams)
 
 
 grid=default_Grid()
-param=Parameter(α=1.0, β=1.9, c=3.0)
+param=Parameter(α=0,5, β=1.5, c=4.0)
 # i,d= first(enumerate(dicts))
 # param=Parameter(α=d["α"], β=d["β"], c=d["c"])
 #cov_matrix_2 = cov_mat_for_vectors(coord_mat_a=coord_coarse_plus_x0, coord_mat_b=coord_coarse_plus_x0, param=param, coord_x0=grid.coord_x0).+1.0
@@ -63,7 +54,7 @@ end
 
 #safe and load results
 safesave(datadir("cov_mat_simulations_cond_sim", savename("cond_sim_empircical_covmat",num_sim,"jld2")), "emp_cov_mat",emp_cov_mat,"true_cov_mat",true_cov_mat,"param",param,"grid",grid,"fine_gauss_data",fine_gauss_data,"coarse_gauss_data",coarse_gauss_data)
-load(datadir("cov_mat_simulations_cond_sim", savename("cond_sim_empircical_covmat",num_sim,"jld2")), "emp_cov_mat", "true_cov_mat", "param", "grid","fine_gauss_data","coarse_gauss_data")
+emp_cov_mat, true_cov_mat, param, grid,fine_gauss_data,coarse_gauss_data=load(datadir("cov_mat_simulations_cond_sim", savename("cond_sim_empircical_covmat",num_sim,"jld2")), "emp_cov_mat", "true_cov_mat", "param", "grid","fine_gauss_data","coarse_gauss_data")
 
 
 

@@ -22,13 +22,13 @@ dicts=dict_list(allparams)
 
 
 grid=default_Grid()
-num_sim=5000 #-> 50000
+num_sim=50000 #-> 50000
 num_runs=2000
 # i,d= first(enumerate(dicts))
 # param=Parameter(α=d["α"], β=d["β"], c=d["c"])
 
 
-#TODO uncomment for simulation
+# #simulation
 # for (i,d) in enumerate(dicts)
 #     param=Parameter(α=d["α"], β=d["β"], c=d["c"])
 #     println(param)
