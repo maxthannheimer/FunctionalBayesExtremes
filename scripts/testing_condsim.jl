@@ -8,7 +8,7 @@ using LinearAlgebra
 
 
 grid=default_Grid()
-param=Parameter(α=0,5, β=1.5, c=4.0)
+param=Parameter(α=1.5, β=1.5, c=4.0)
 # i,d= first(enumerate(dicts))
 # param=Parameter(α=d["α"], β=d["β"], c=d["c"])
 #cov_matrix_2 = cov_mat_for_vectors(coord_mat_a=coord_coarse_plus_x0, coord_mat_b=coord_coarse_plus_x0, param=param, coord_x0=grid.coord_x0).+1.0
@@ -16,13 +16,13 @@ param=Parameter(α=0,5, β=1.5, c=4.0)
 #eigen(cov_matrix_2)
 
 
-num_sim=100000
+num_sim=20000
 @time (coarse_gauss_data=FunctionalBayesExtremes.r_gaussian_sparse(param=param,coord_coarse=grid.coord_coarse,coord_x0=grid.coord_x0,num_sim=num_sim))
 
 
 
 
-@time (fine_gauss_data=FunctionalBayesExtremes.r_cond_gaussian(param=param,grid=grid,num_sim=1,cond_obs=coarse_gauss_data))
+@time (fine_gauss_data=FunctionalBayesExtremes.r_cond_gaussian_observation_vectors(param=param,grid=grid,num_sim=1,cond_obs=coarse_gauss_data))
 
 
 #standard method using cov matrix

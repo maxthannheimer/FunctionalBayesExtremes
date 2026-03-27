@@ -128,14 +128,14 @@ end
 
 
 
-""" conditional gaussian simulation (conditioning on the coarse grid observations)"""
-#TODO add standard Observation Object structure instead of cond_obs
-function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,cond_obs::Vector{Vector{Float64}}) #coord_x0 (hier c egal)
+""" conditional gaussian simulation (conditioning on arbitrary value vectors)"""
+
+function r_cond_gaussian_observation_vectors(;param::Parameter,grid::Grid,num_sim::Int,cond_obs::Vector{Vector{Float64}}) #coord_x0 (hier c egal)
     #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
     
     sigma_yy_inv = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param, coord_x0=grid.coord_x0 )) #hier 
     sigma_zy= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)'   
-    res=[param.α.*r_gaussian(param=param, grid=grid, num_sim=num_sim) for j in 1:size(cond_obs,1)]
+    res=[r_gaussian(param=param, grid=grid, num_sim=num_sim) for j in 1:size(cond_obs,1)]
         #grid.coord_fine,param,grid.coord_x0,num_sim,alpha) for j in 1:size(cond_obs,1)]
     for j in 1:size(cond_obs,1)
         for i in 1:num_sim
@@ -146,19 +146,41 @@ function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,cond_obs::Vec
     res
 end
 
+""" conditional gaussian simulation (conditioning on transformed observations on coarse grid), result is still Gaussian"""
+function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,observation::Observation) :: Vector{Vector{Vector{Float64}}}
+    #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
+    sigma_yy_inv = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param, coord_x0=grid.coord_x0 )) #hier 
+    sigma_zy= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)'   
+    res=[r_gaussian(param=param, grid=grid, num_sim=num_sim) for j in 1:size(observation.obs_data,1)]
+        #grid.coord_fine,param,grid.coord_x0,num_sim,alpha) for j in 1:size(cond_obs,1)]
+    for j in 1:size(observation.obs_data,1)
+        for i in 1:num_sim
+            #here observation is tranformed, sice we assume to observe W=exp(1/α G)=X/X_0 <=> G=α(log(X)-log(X_0)) 
+            normalized_coarse_observation = param.α.*  (log.(observation.obs_data[j,:]).-log(observation.obs_x0[j]))
+            res[j][i] =res[j][i] + sigma_zy*(sigma_yy_inv*(normalized_coarse_observation-res[j][i][grid.rows_coord_coarse])) #variogram
+        end
+    end
+    res
+end
+
 
 using Distributions
 
-#TODO finish with standard Observation Object structure
-function exceed_cond_sim_old(num_runs::Int,observation::Observation,threshold::Float64, param::Parameter, grid::Grid )
-    tmp = param.α.*exp.( r_cond_gaussian(param=param, grid=grid, num_sim=num_runs,cond_obs=observation.obs_data)) #TODO Check if cond log gaussian or cond gaussian is needed
+""" exceedance selection among all observations,
+    output is Observation object containing only exceedances over threshold and risk functional value for each observation"""
+
+function exceed_cond_sim(;num_runs::Int,observation::Observation,threshold::Float64, param::Parameter, grid::Grid )::Tuple{Observation, Vector{Float64}}
+    num_obs=size(observation.obs_data,1)
+    tmp = r_cond_gaussian(param=param, grid=grid, num_sim=num_runs+1,observation=observation)
+    #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
+    tmp_exp = [[exp.(1/param.α.* w) for w in v]  for v in tmp] 
     res_ell_X = [0.0 for i in 1:num_obs] 
 
    #old_value=r_cond_log_gaussian(observation_data[1,:],observation_x0[1], coord_fine,coord_coarse,param,row_x0)
    for i in 1:num_obs #direkt num_obs viele simulations 
-        old_value = tmp[i][1]
+        old_value = tmp_exp[i][1]
         for trial in 1:num_runs
-            proposal = tmp[i][trial+1]
+            proposal = tmp_exp[i][trial+1]
             acceptance_rate = min(1,mean(proposal)^param.α/mean(old_value)^param.α)   
             if (rand()< acceptance_rate)
                 old_value=proposal
@@ -172,7 +194,27 @@ function exceed_cond_sim_old(num_runs::Int,observation::Observation,threshold::F
         #likelihood calculation and param updates
         #find all threshold exccedances and calculate the log of them
         ind=findall(res_ell_X.>threshold)
-        exceed_obs=Observation(sim_data=observation.sim_data, obs_data=observation.obs_data[ind,:], obs_x0=observation.obs_x0[ind])
+        exceed_obs=Observation(observation.sim_data, observation.obs_data[ind,:], observation.obs_x0[ind])
         (exceed_obs,res_ell_X)
     end
 end
+
+
+""" Now we build the likelihood parts according to our paper """
+
+""" l4= P (x(s0)*r(W)>u | W=x/x(s0) ) 
+    to estimate that emperically, we sample from W on the fine grid conditional on our normalized observations and then count how often r(W)>u/x(s0) holds"""
+
+function l_4_fun(;observation:: Observation, threshold::Float64, param::Parameter, grid::Grid ,N_est_d::Int)::Float64
+    num_obs=size(observation.obs_data,1)
+    tmp = r_cond_gaussian(param=param, grid=grid, num_sim=N_est_d,observation=observation)
+    #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
+    tmp_exp = [[exp.(1/param.α.* w) for w in v]  for v in tmp] 
+    res_est_prob = [0.0 for i in 1:num_obs] 
+    for i in 1:num_obs #direkt num_obs viele simulations 
+            counter = [mean(tmp_exp[i][trial]) for trial in 1:N_est_d].>threshold/observation.obs_x0[i]
+            res_est_prob[i] = sum(counter)/N_est_d
+    end
+    return sum(log.(res_est_prob))
+end
+
