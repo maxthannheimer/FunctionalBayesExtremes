@@ -14,3 +14,6 @@ obs_exceed[1].obs_x0
 typeof(obs_exceed)
 
 FunctionalBayesExtremes.l_4_fun(observation=observation, threshold=1.0, param=param, grid=grid ,N_est_d=300)
+
+FunctionalBayesExtremes.l_1_fun(param=param, grid=grid,observation=observation)   
+FunctionalBayesExtremes.l_1_fun(param=param, grid=grid,observation=obs_exceed[1]) 

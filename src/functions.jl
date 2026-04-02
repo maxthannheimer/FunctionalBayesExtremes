@@ -41,7 +41,7 @@ end
 #cov_fun_vario(param=param,coord_a=grid.coord_fine[5,:],coord_b=grid.coord_fine[2,:],coord_x0=grid.coord_x0)
 
 
-"""calculate cov matrix for two matrices of coordinates and the variogramm given via param and normalized at x0"""
+"""calculate cov matrix for two matrices of coordinates and the variogramm given via param and normalized at ARBITRARY x0"""
 function cov_mat_for_vectors(;coord_mat_a::Matrix{Float64}, coord_mat_b::Matrix{Float64}, param::Parameter, coord_x0::Vector{Float64})::Matrix{Float64}
     Nx=size(coord_mat_a,1)
     Ny=size(coord_mat_b,1)
@@ -146,6 +146,7 @@ function r_cond_gaussian_observation_vectors(;param::Parameter,grid::Grid,num_si
     res
 end
 
+#TODO: write function to conditionally sample W, also and function for unconditional W simulation
 """ conditional gaussian simulation (conditioning on transformed observations on coarse grid), result is still Gaussian"""
 function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,observation::Observation) :: Vector{Vector{Vector{Float64}}}
     #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
@@ -200,13 +201,15 @@ function exceed_cond_sim(;num_runs::Int,observation::Observation,threshold::Floa
 end
 
 
+
 """ Now we build the likelihood parts according to our paper """
 
-""" l4= P (x(s0)*r(W)>u | W=x/x(s0) ) 
+""" l4= ∏(for i in observation) P (x_i(s0)*r(W)>u | W=x_i/x_i(s0) ) 
     to estimate that emperically, we sample from W on the fine grid conditional on our normalized observations and then count how often r(W)>u/x(s0) holds"""
 
 function l_4_fun(;observation:: Observation, threshold::Float64, param::Parameter, grid::Grid ,N_est_d::Int)::Float64
     num_obs=size(observation.obs_data,1)
+    #TODO: change to new W_cond_sim
     tmp = r_cond_gaussian(param=param, grid=grid, num_sim=N_est_d,observation=observation)
     #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
     tmp_exp = [[exp.(1/param.α.* w) for w in v]  for v in tmp] 
@@ -218,3 +221,29 @@ function l_4_fun(;observation:: Observation, threshold::Float64, param::Paramete
     return sum(log.(res_est_prob))
 end
 
+
+
+""" l1= ∏(for i in observation) f_W(x_i/x_i(s0)) 
+    use the exceedance observations and evaluate all the coarse gride densities f_W(x_i/x_i(s0)) for the log gaussian distrib W"""
+
+""" this is the log gaussian density function for the coarse grid observations, which we use to calculate l1, the likelihood of the exceedance observations under the model W"""
+function log_d_log_gaussian(mu,cov_mat_inv,x,inv_determinant)
+   (-0.5*transpose(log.(x)-mu) * cov_mat_inv * (log.(x)-mu) )+0.5*log(inv_determinant)#+log(sqrt((2*pi)^(-size(x,1))))-sum(log.(x)) #hier sum log x, da wir die Dichte von W=exp(1/α G) berechnen, also müssen wir die Dichte von G mit der Ableitung von W nach G multiplizieren, was 1/W=1/exp(1/α G) ist, also log(1/exp(1/α G))=-log(W)=-log(x)
+end
+
+function l_1_fun(;param::Parameter, grid::Grid,observation::Observation)::Float64
+    cov_mat_coarse_inv= param.α^2*inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse, param=param, coord_x0=grid.coord_x0)) #hier 
+    inv_determinant = det(cov_mat_coarse_inv)
+    trend = -vec_vario(param=param,coord_vec=grid.coord_coarse,coord_x0=grid.coord_x0)/param.α
+    sum([(log_d_log_gaussian(trend, cov_mat_coarse_inv, observation.obs_data[i,:]./observation.obs_x0[i], inv_determinant)) for i in 1:size(observation.obs_data,1)])
+end
+
+
+""" l3 = ∏( for i in observation) α (x_i(s_0)/thresh)^(-α-1) """
+
+function l_3_fun(;observation::Observation, param::Parameter, threshold::Float64)
+    #sum([log(alpha*(observation_x0[i]/threshold)^(-alpha-1)) for i in 1:size(observation_x0,1)])
+    sum([log(param.α)+log((observation.obs_x0[i]/threshold))*(-param.α-1) for i in 1:size(observation.obs_x0,1)])
+end
+
+""" l2= est(1/C) * size(obs) """

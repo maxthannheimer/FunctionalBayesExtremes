@@ -1,6 +1,5 @@
 module FunctionalBayesExtremes
 using DrWatson
-
 include("structs.jl")
 include("functions.jl")
 include("fractionalBM.jl")

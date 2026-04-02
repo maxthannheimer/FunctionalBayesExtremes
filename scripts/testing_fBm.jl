@@ -3,6 +3,7 @@
 using DrWatson
 @quickactivate :FunctionalBayesExtremes
 
+using LinearAlgebra
 
 #Import needed functions FBM_simu_fast and fBm for testing them
 
@@ -63,7 +64,6 @@ end
 
 
 
-
 #safe and load results
 safesave(datadir("cov_mat_simulations", savename("FBM_empircical_covmat",num_sim,"jld2")), "emp_cov_mat",emp_cov_mat,"emp_cov_mat2",emp_cov_mat2,"true_cov_mat",true_cov_mat,"param",param,"grid",grid)
 load(datadir("cov_mat_simulations", savename("FBM_empircical_covmat",num_sim,"jld2")), "emp_cov_mat", "emp_cov_mat2", "true_cov_mat", "param", "grid")
@@ -81,3 +81,12 @@ maximum(
 maximum(
     abs.((emp_cov_mat2-true_cov_mat) )#./(true_cov_mat.+10^(-8)))
     )
+
+
+#double check true covariance matrix with cov_mat_for_vectors function, its the same if the reference point is [0.0,0.0], which is the case we want since we do normalization after fbm simulation
+true_cov_mat2=FunctionalBayesExtremes.cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param, coord_x0=[0.0,0.0])
+#||.||_∞ error between both cov_mat_for_vectors and cov_mat hardcoded:
+maximum(
+    abs.((true_cov_mat2-true_cov_mat)  )#./(true_cov_mat.+10^(-8)))
+    )
+
