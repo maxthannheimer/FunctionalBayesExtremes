@@ -82,7 +82,7 @@ function r_log_gaussian_alpha(;param::Parameter,grid::Grid,num_sim::Int) :: Vect
 end
 
 """ simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
-simulate numrep many 1/α[G(s)-G(x0)-γ(s-x0)] """
+simulate numrep many [G(s)-G(x0)-γ(s-x0)] """
 function r_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
     res = FBM_simu_fast(param=param, grid=grid, num_sim=num_sim)
     trend=vec_vario_grid(param=param,grid=grid)
@@ -91,6 +91,18 @@ function r_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{
     end
     res
 end
+
+""" simulation of log gaussian random vectors with brown resnick covariance, using the circulant embedding method.
+simulate numrep many W(s)=exp(1/α [G(s)-G(x0)-γ(s-x0)] )"""
+function r_W(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
+    res = FBM_simu_fast(param=param, grid=grid, num_sim=num_sim)
+    trend=vec_vario_grid(param=param,grid=grid)
+    for i in 1:num_sim
+            res[i] = exp.(1/param.α*( res[i] - trend .-res[i][grid.x0])) #same as r_gaussian but with exp and 1/alpha
+    end
+    res
+end
+
 
 function r_gaussian_sparse(;param::Parameter,coord_coarse::Matrix{Float64},coord_x0::Vector{Float64},num_sim::Int) :: Vector{Vector{Float64}}
     N=size(coord_coarse,1)+1
@@ -146,9 +158,10 @@ function r_cond_gaussian_observation_vectors(;param::Parameter,grid::Grid,num_si
     res
 end
 
-#TODO: write function to conditionally sample W, also and function for unconditional W simulation
+#TODO: write function to conditionally sample W, also and function for unconditional W simulation 
+#change r_cond gaussian to be without trafo, therefore modify observation in W_cond_gaussian
 """ conditional gaussian simulation (conditioning on transformed observations on coarse grid), result is still Gaussian"""
-function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,observation::Observation) :: Vector{Vector{Vector{Float64}}}
+function r_cond_gaussian_with_trafo(;param::Parameter,grid::Grid,num_sim::Int,observation::Observation) :: Vector{Vector{Vector{Float64}}}
     #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
     sigma_yy_inv = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param, coord_x0=grid.coord_x0 )) #hier 
     sigma_zy= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)'   
@@ -158,12 +171,39 @@ function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,observation::
         for i in 1:num_sim
             #here observation is tranformed, sice we assume to observe W=exp(1/α G)=X/X_0 <=> G=α(log(X)-log(X_0)) 
             normalized_coarse_observation = param.α.*  (log.(observation.obs_data[j,:]).-log(observation.obs_x0[j]))
+            #
             res[j][i] =res[j][i] + sigma_zy*(sigma_yy_inv*(normalized_coarse_observation-res[j][i][grid.rows_coord_coarse])) #variogram
         end
     end
     res
 end
 
+""" conditional gaussian simulation (conditioning on transformed observations on coarse grid), result is still Gaussian"""
+function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,gaussian_observation::Vector{Vector{Float64}}) :: Vector{Vector{Vector{Float64}}}
+    #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
+    sigma_yy_inv = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param, coord_x0=grid.coord_x0 )) #hier 
+    sigma_zy= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)'   
+    res=[r_gaussian(param=param, grid=grid, num_sim=num_sim) for j in 1:size(gaussian_observation,1)]
+        #grid.coord_fine,param,grid.coord_x0,num_sim,alpha) for j in 1:size(cond_obs,1)]
+    for j in 1:size(gaussian_observation,1)
+        for i in 1:num_sim
+            res[j][i] =res[j][i] + sigma_zy*(sigma_yy_inv*(gaussian_observation[j]-res[j][i][grid.rows_coord_coarse])) #variogram
+        end
+    end
+    res
+end
+
+function observation_trafo(;observation::Observation, param::Parameter)::Vector{Vector{Float64}}
+    #transform observation to G space, since we observe W=exp(1/α G)=X/X_0 <=> G=α(log(X)-log(X_0)) 
+    [param.α.*  (log.(observation.obs_data[j,:]).-log(observation.obs_x0[j])) for j in 1:size(observation.obs_data,1)]
+end
+
+#Simulation of W via conditional Gaussian simulation of G and transformation W=exp(1/α G)
+function r_cond_W(;param::Parameter,grid::Grid,num_sim::Int,observation::Observation) :: Vector{Vector{Vector{Float64}}}
+    tmp = r_cond_gaussian(param=param, grid=grid, num_sim=num_sim,gaussian_observation=observation_trafo(observation=observation,param=param))
+    #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
+    return [[exp.(1/param.α.* w) for w in v]  for v in tmp] 
+end
 
 using Distributions
 
@@ -172,9 +212,8 @@ using Distributions
 
 function exceed_cond_sim(;num_runs::Int,observation::Observation,threshold::Float64, param::Parameter, grid::Grid )::Tuple{Observation, Vector{Float64}}
     num_obs=size(observation.obs_data,1)
-    tmp = r_cond_gaussian(param=param, grid=grid, num_sim=num_runs+1,observation=observation)
+    tmp_exp = r_cond_W(param=param, grid=grid, num_sim=num_runs+1,observation=observation)
     #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
-    tmp_exp = [[exp.(1/param.α.* w) for w in v]  for v in tmp] 
     res_ell_X = [0.0 for i in 1:num_obs] 
 
    #old_value=r_cond_log_gaussian(observation_data[1,:],observation_x0[1], coord_fine,coord_coarse,param,row_x0)
@@ -207,15 +246,13 @@ end
 """ l4= ∏(for i in observation) P (x_i(s0)*r(W)>u | W=x_i/x_i(s0) ) 
     to estimate that emperically, we sample from W on the fine grid conditional on our normalized observations and then count how often r(W)>u/x(s0) holds"""
 
-function l_4_fun(;observation:: Observation, threshold::Float64, param::Parameter, grid::Grid ,N_est_d::Int)::Float64
-    num_obs=size(observation.obs_data,1)
-    #TODO: change to new W_cond_sim
-    tmp = r_cond_gaussian(param=param, grid=grid, num_sim=N_est_d,observation=observation)
-    #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
-    tmp_exp = [[exp.(1/param.α.* w) for w in v]  for v in tmp] 
+function l_4_fun(;exceedance_observation:: Observation, threshold::Float64, param::Parameter, grid::Grid ,N_est_d::Int)::Float64
+    num_obs=size(exceedance_observation.obs_data,1)
+    #Here simulations of W via W=exp(1/α G)
+    tmp_exp = r_cond_W(param=param, grid=grid, num_sim=N_est_d,observation=exceedance_observation)
     res_est_prob = [0.0 for i in 1:num_obs] 
     for i in 1:num_obs #direkt num_obs viele simulations 
-            counter = [mean(tmp_exp[i][trial]) for trial in 1:N_est_d].>threshold/observation.obs_x0[i]
+            counter = [mean(tmp_exp[i][trial]) for trial in 1:N_est_d].>threshold/exceedance_observation.obs_x0[i]
             res_est_prob[i] = sum(counter)/N_est_d
     end
     return sum(log.(res_est_prob))
@@ -227,23 +264,31 @@ end
     use the exceedance observations and evaluate all the coarse gride densities f_W(x_i/x_i(s0)) for the log gaussian distrib W"""
 
 """ this is the log gaussian density function for the coarse grid observations, which we use to calculate l1, the likelihood of the exceedance observations under the model W"""
-function log_d_log_gaussian(mu,cov_mat_inv,x,inv_determinant)
+function log_d_log_gaussian(mu,cov_mat_inv,x,inv_determinant)::Float64
    (-0.5*transpose(log.(x)-mu) * cov_mat_inv * (log.(x)-mu) )+0.5*log(inv_determinant)#+log(sqrt((2*pi)^(-size(x,1))))-sum(log.(x)) #hier sum log x, da wir die Dichte von W=exp(1/α G) berechnen, also müssen wir die Dichte von G mit der Ableitung von W nach G multiplizieren, was 1/W=1/exp(1/α G) ist, also log(1/exp(1/α G))=-log(W)=-log(x)
 end
 
-function l_1_fun(;param::Parameter, grid::Grid,observation::Observation)::Float64
+function l_1_fun(;param::Parameter, grid::Grid,exceedance_observation::Observation)::Float64
     cov_mat_coarse_inv= param.α^2*inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse, param=param, coord_x0=grid.coord_x0)) #hier 
     inv_determinant = det(cov_mat_coarse_inv)
     trend = -vec_vario(param=param,coord_vec=grid.coord_coarse,coord_x0=grid.coord_x0)/param.α
-    sum([(log_d_log_gaussian(trend, cov_mat_coarse_inv, observation.obs_data[i,:]./observation.obs_x0[i], inv_determinant)) for i in 1:size(observation.obs_data,1)])
+    sum([(log_d_log_gaussian(trend, cov_mat_coarse_inv, exceedance_observation.obs_data[i,:]./exceedance_observation.obs_x0[i], inv_determinant)) for i in 1:size(exceedance_observation.obs_data,1)])
 end
 
 
 """ l3 = ∏( for i in observation) α (x_i(s_0)/thresh)^(-α-1) """
 
-function l_3_fun(;observation::Observation, param::Parameter, threshold::Float64)
+function l_3_fun(;exceedance_observation::Observation, param::Parameter, threshold::Float64)::Float64
     #sum([log(alpha*(observation_x0[i]/threshold)^(-alpha-1)) for i in 1:size(observation_x0,1)])
-    sum([log(param.α)+log((observation.obs_x0[i]/threshold))*(-param.α-1) for i in 1:size(observation.obs_x0,1)])
+    sum([log(param.α)+log((exceedance_observation.obs_x0[i]/threshold))*(-param.α-1) for i in 1:size(exceedance_observation.obs_x0,1)])
 end
 
 """ l2= est(1/C) * size(obs) """
+
+function l_2_fun(;param::Parameter, grid::Grid, N_est_c::Int, exceedance_observation::Observation)::Float64
+    tmp = r_W(param = param, grid = grid, num_sim = N_est_c) 
+    -size(exceedance_observation.obs_x0,1) * log(mean([mean(tmp[i] 
+        )^(param.α) for i in 1:N_est_c]))  
+     # minus for 1/c_l (in log)
+ end
+

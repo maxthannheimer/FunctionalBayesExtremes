@@ -16,13 +16,15 @@ param=Parameter(α=1.5, β=1.5, c=4.0)
 #eigen(cov_matrix_2)
 
 
-num_sim=20000
+num_sim=2000
 @time (coarse_gauss_data=FunctionalBayesExtremes.r_gaussian_sparse(param=param,coord_coarse=grid.coord_coarse,coord_x0=grid.coord_x0,num_sim=num_sim))
-
+coarse_gauss_data[1]
 
 
 
 @time (fine_gauss_data=FunctionalBayesExtremes.r_cond_gaussian_observation_vectors(param=param,grid=grid,num_sim=1,cond_obs=coarse_gauss_data))
+
+grid.rows_coord_coarse
 
 
 #standard method using cov matrix
