@@ -1,4 +1,6 @@
 name = "FunctionalBayesExtremes"
+uuid = "936925e4-34de-11f1-9e48-1541e1d25bea"
+version = "0.1.0"
 authors = ["Max Thannheimer"]
 
 [deps]

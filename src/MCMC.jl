@@ -1,3 +1,6 @@
+export MCMC
+
+
 #this function proposes a new value uniformly distributed in a 2 eps window in between min_val and max_val arround the old_param
 function uniform_proposal(old_param,eps,min_val,max_val)
     if (old_param>min_val+eps && old_param<max_val-eps)
@@ -108,7 +111,7 @@ function MCMC(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Pa
         #MCMC update of param according to acceptance rate calculated with old and new likelihoods
         #update and safe param after MCMC step
         param_vec[trial+1],log_likelihood_vec[trial] =parameter_update(param_old=param_vec[trial],param_new=param_eps,log_likelihood_old=log_likelihood_old,log_likelihood_new=log_likelihood_new)
-        number_exceed_vec[trial]=size(modified_observation,1)
+        number_exceed_vec[trial]=size(exceedance_observation.obs_x0,1)
     end
-    Dict( "beta" => par_beta_vec, "c" => par_c_vec, "alpha" => par_alpha_vec, "threshold" => threshold_vec, "Number of exceedance"=> number_exceed_vec, "log_likelihood" => log_likelihood_vec, "res_ell_X" => res_ell_X_vec) # "log_likelihood_diff" => log_likelihood_diff_vec, "log_likelihood_diff_short" => log_likelihood_diff_vec_short)
+    Dict( "param" => param_vec, "Number of exceedance"=> number_exceed_vec, "log_likelihood" => log_likelihood_vec, "res_ell_X" => res_ell_X_vec) # "log_likelihood_diff" => log_likelihood_diff_vec, "log_likelihood_diff_short" => log_likelihood_diff_vec_short)
 end  
