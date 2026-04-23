@@ -104,17 +104,17 @@ function r_W(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64
 end
 
 
-function r_gaussian_sparse(;param::Parameter,coord_coarse::Matrix{Float64},coord_x0::Vector{Float64},num_sim::Int) :: Vector{Vector{Float64}}
-    N=size(coord_coarse,1)+1
+function r_gaussian_sparse(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
+    N=size(grid.coord_coarse,1)+1
     cov_matrix = zeros(Float64, N, N)
-    coord_coarse_plus_x0 = vcat(coord_coarse, coord_x0')
+    coord_coarse_plus_x0 = vcat(grid.coord_coarse, grid.coord_x0')
     #for i in 1:N
      #   for j in 1:N
       #      cov_matrix[i, j] =  param.c*((norm(coord_coarse_plus_x0[i,:])^param.β + norm(coord_coarse_plus_x0[j,:])^param.β - norm(coord_coarse_plus_x0[i,:] - coord_coarse_plus_x0[j,:])^param.β)).+1.0
     #    end
     #end
-    cov_matrix = cov_mat_for_vectors(coord_mat_a=coord_coarse_plus_x0, coord_mat_b=coord_coarse_plus_x0, param=param, coord_x0=coord_x0).+1.0
-    trend=vec_vario(param=param,coord_vec=coord_coarse_plus_x0,coord_x0=coord_x0)
+    cov_matrix = cov_mat_for_vectors(coord_mat_a=coord_coarse_plus_x0, coord_mat_b=coord_coarse_plus_x0, param=param, coord_x0=grid.coord_x0).+1.0
+    trend=vec_vario(param=param,coord_vec=coord_coarse_plus_x0,coord_x0=grid.coord_x0)
     
     # Generate a sample from the multivariate normal distribution
     mean_vector = zeros(Float64, N)
@@ -125,20 +125,36 @@ function r_gaussian_sparse(;param::Parameter,coord_coarse::Matrix{Float64},coord
     end
     for i in 1:num_sim
         res[i] = res[i] - trend .-res[i][end]   
-        #res[i] = 1/param.α*(res[i] - trend .-res[i][end])#variogram
     end
-    #TODO removed α here, maybe add it again afterwards, it still is in r_gaussian and r_log_gaussian
-    #  res2=[Vector{Float64}(undef,N) for i in 1:num_sim]
-    # for i in 1:num_sim
-    #     res2[i] = rand(MvNormal(mean_vector, cov_matrix))
-    # end
-    # for i in 1:num_sim
-    #         res2[i] = 1/param.α*(res2[i] - trend .-res2[i][end])#variogram
-    # end
-    return res#cov_matrix,cov_matrix_2
+    return res
 end
 
 
+function r_W_sparse(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
+    N=size(grid.coord_coarse,1)+1
+    cov_matrix = zeros(Float64, N, N)
+    coord_coarse_plus_x0 = vcat(grid.coord_coarse, grid.coord_x0')
+    #for i in 1:N
+     #   for j in 1:N
+      #      cov_matrix[i, j] =  param.c*((norm(coord_coarse_plus_x0[i,:])^param.β + norm(coord_coarse_plus_x0[j,:])^param.β - norm(coord_coarse_plus_x0[i,:] - coord_coarse_plus_x0[j,:])^param.β)).+1.0
+    #    end
+    #end
+    cov_matrix = cov_mat_for_vectors(coord_mat_a=coord_coarse_plus_x0, coord_mat_b=coord_coarse_plus_x0, param=param, coord_x0=grid.coord_x0).+1.0
+    trend=vec_vario(param=param,coord_vec=coord_coarse_plus_x0,coord_x0=grid.coord_x0)
+    
+    # Generate a sample from the multivariate normal distribution
+    mean_vector = zeros(Float64, N)
+    #return cov_matrix
+    res=[Vector{Float64}(undef,N) for i in 1:num_sim]
+    for i in 1:num_sim
+        res[i] = rand(MvNormal(mean_vector, cov_matrix))
+    end
+    for i in 1:num_sim
+        #res[i] = res[i] - trend .-res[i][end]  
+        res[i] = exp.(1/param.α*( res[i] - trend .-res[i][end])) 
+    end
+    return res
+end
 
 """ conditional gaussian simulation (conditioning on arbitrary value vectors)"""
 
@@ -158,8 +174,6 @@ function r_cond_gaussian_observation_vectors(;param::Parameter,grid::Grid,num_si
     res
 end
 
-#TODO: write function to conditionally sample W, also and function for unconditional W simulation 
-#change r_cond gaussian to be without trafo, therefore modify observation in W_cond_gaussian
 """ conditional gaussian simulation (conditioning on transformed observations on coarse grid), result is still Gaussian"""
 function r_cond_gaussian_with_trafo(;param::Parameter,grid::Grid,num_sim::Int,observation::Observation) :: Vector{Vector{Vector{Float64}}}
     #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
@@ -192,6 +206,7 @@ function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,gaussian_obse
     end
     res
 end
+
 
 function observation_trafo(;observation::Observation, param::Parameter)::Vector{Vector{Float64}}
     #transform observation to G space, since we observe W=exp(1/α G)=X/X_0 <=> G=α(log(X)-log(X_0)) 
@@ -239,7 +254,27 @@ function exceed_cond_sim(;num_runs::Int,observation::Observation,threshold::Floa
     end
 end
 
+"""exceedance selection among all observations, but without the conditional simulation, only via the approximate risk functional, a.k.a. the mean of the coarse observations"""
+function exceed_cond_sim_approx(;observation::Observation,threshold::Float64)::Tuple{Observation, Vector{Float64}}
+    num_obs=size(observation.obs_data,1)
+    #tmp_exp = r_cond_W(param=param, grid=grid, num_sim=num_runs+1,observation=observation)
+    #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
+    res_ell_X = [0.0 for i in 1:num_obs] 
 
+   #old_value=r_cond_log_gaussian(observation_data[1,:],observation_x0[1], coord_fine,coord_coarse,param,row_x0)
+    for i in 1:num_obs #direkt num_obs viele simulations 
+        res_ell_X[i]=mean(vcat(observation.obs_data[i,:],observation.obs_x0[i]))
+    end
+    if sum(res_ell_X.>threshold)==0
+        Base._throw_argerror("not a single threshold exceedance")
+    else
+        #likelihood calculation and param updates
+        #find all threshold exccedances and calculate the log of them
+        ind=findall(res_ell_X.>threshold)
+        exceed_obs=Observation(observation.sim_data, observation.obs_data[ind,:], observation.obs_x0[ind])
+        (exceed_obs,res_ell_X)
+    end
+end
 
 """ Now we build the likelihood parts according to our paper """
 
@@ -276,6 +311,7 @@ function l_1_fun(;param::Parameter, grid::Grid,exceedance_observation::Observati
 end
 
 
+
 """ l3 = ∏( for i in observation) α (x_i(s_0)/thresh)^(-α-1) """
 
 function l_3_fun(;exceedance_observation::Observation, param::Parameter, threshold::Float64)::Float64
@@ -292,3 +328,9 @@ function l_2_fun(;param::Parameter, grid::Grid, N_est_c::Int, exceedance_observa
      # minus for 1/c_l (in log)
  end
 
+function l_2_fun_approx(;param::Parameter, grid::Grid, N_est_c::Int, exceedance_observation::Observation)::Float64
+    tmp = r_W_sparse(param = param, grid = grid, num_sim = N_est_c) 
+    -size(exceedance_observation.obs_x0,1) * log(mean([mean(tmp[i] 
+        )^(param.α) for i in 1:N_est_c]))  
+     # minus for 1/c_l (in log)
+ end

@@ -2,7 +2,7 @@
 
 julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "771512624c90b84724f7a64cb85c3305210ec3cd"
+project_hash = "c36d13031bfbda13615258eca1436f04e8892a98"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -177,6 +177,12 @@ version = "1.16.0"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
     Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[[deps.FunctionalBayesExtremes]]
+deps = ["DataFrames", "Distributions", "DrWatson", "FFTW", "LinearAlgebra", "StatsBase"]
+path = "."
+uuid = "936925e4-34de-11f1-9e48-1541e1d25bea"
+version = "0.1.0"
 
 [[deps.Future]]
 deps = ["Random"]

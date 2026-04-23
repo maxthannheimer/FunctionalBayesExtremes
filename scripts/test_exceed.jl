@@ -16,6 +16,9 @@ test2=FunctionalBayesExtremes.r_cond_W(param=param,grid=grid,num_sim=10,observat
 obs_exceed=FunctionalBayesExtremes.exceed_cond_sim(num_runs=10,observation=observation,threshold=1.0, param=param, grid=grid )
 obs_exceed[1].obs_x0
 
+
+obs_exceed_approx=FunctionalBayesExtremes.exceed_cond_sim_approx(observation=observation,threshold=1.0)
+obs_exceed_approx[1].obs_x0
 typeof(obs_exceed)
 
 #test likelihood functions
