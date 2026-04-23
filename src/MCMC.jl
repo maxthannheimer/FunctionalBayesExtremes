@@ -62,7 +62,7 @@ function MCMC(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Pa
     num_obs=size(observation.obs_x0,1)
 
     param_vec = [Parameter(α=NaN, β=NaN, c=NaN) for i=1:N_MCMC+1]
-    param_vec[1]=true_param
+    param_vec[1]=param
     #threshold_vec = [threshold for i=1:N_MCMC]
     number_exceed_vec = [NaN for i=1:N_MCMC]
     log_likelihood_vec = [NaN for i=1:N_MCMC]
@@ -125,7 +125,7 @@ function MCMC_approx(;N_MCMC::Int,observation::Observation,threshold::Float64,pa
     num_obs=size(observation.obs_x0,1)
 
     param_vec = [Parameter(α=NaN, β=NaN, c=NaN) for i=1:N_MCMC+1]
-    param_vec[1]=true_param
+    param_vec[1]=param
     #threshold_vec = [threshold for i=1:N_MCMC]
     number_exceed_vec = [NaN for i=1:N_MCMC]
     log_likelihood_vec = [NaN for i=1:N_MCMC]
