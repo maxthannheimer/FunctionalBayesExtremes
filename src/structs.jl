@@ -13,11 +13,18 @@ struct Parameter
         new(α, β, c)
     end
 end
-#testing Parameter struct
-#p=Parameter(α=1.0, β=2.0, c=3.0)
 
 
-""" Struct for the Observation Simulation. """
+
+""" Struct for to generate a grid, two constructors for generating an arbitrary grid and one for a fixed 9x9 grid with predifined points. """
+""" The grid struct contains the following fields:
+- gridsize: the size of the grid (number of points in one dimension)
+- N_coarse: the number of coarse points representing the observations
+- coord_fine: the coordinates of the fine grid points
+- coord_coarse: the coordinates of the coarse grid points
+- rows_coord_coarse: the indices of the coarse grid points in the fine grid
+- x0: the index of the normalization point in the fine grid
+- coord_x0: the coordinates of the normalization point in the fine grid """
 struct Grid
     gridsize::Int
     N_coarse::Int
@@ -60,12 +67,10 @@ function default_Grid()
         Grid(gridsize, N_coarse, coord_fine, coord_coarse, rows_coord_coarse, x0,coord_fine[x0,:])
 end
 
-#Testing Grid struct
-#grid=Grid(gridsize=10, N_coarse=5)
-#grid=Grid()
-#grid.coord_fine
 
 
+""" Struct for the Observation Simulation. """
+""" Here we store the simulated and observed data along with the normalization point. """
 struct Observation
     sim_data::Matrix{Float64}
     obs_data::Matrix{Float64}
@@ -73,7 +78,7 @@ struct Observation
     function Observation(sim_data::Matrix{Float64}, obs_data::Matrix{Float64}, obs_x0::Vector{Float64})
         new(sim_data, obs_data, obs_x0)
     end
-    function Observation(;param::Parameter, grid::Grid, num_runs::Int, num_sim::Int) #TODO change to outer function with name simulate_observations since julia has problems with inner constructors and uninitialized keyword arguments 
+    function Observation(;param::Parameter, grid::Grid, num_runs::Int, num_sim::Int) 
         sim_data, obs_data, obs_x0 = simulate_pareto_process(param=param, grid=grid, num_runs=num_runs, num_sim=num_sim)
         new(sim_data, obs_data, obs_x0)
     end

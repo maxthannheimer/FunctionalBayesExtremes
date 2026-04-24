@@ -26,11 +26,6 @@ function vec_vario(;param::Parameter,coord_vec::Matrix{Float64},coord_x0::Vector
      param.c.*norm.(eachrow(coord_vec.-coord_x0')).^param.β
 end
 
-#param=Parameter(α=1.0, β=2.0, c=3.0)
-#grid=Grid()
-#grid.gridsize
-#vec_vario_grid(param=param,grid=grid)
-#vec_vario(param=param,coord_vec=grid.coord_fine,coord_x0=grid.coord_x0)
 
 """ covariance function for two locations x and y 
  c⋅||x-x0||^β + c⋅||y-x0||^β -c⋅||x-y||^β , normalized in x0 """
@@ -38,7 +33,6 @@ function cov_fun_vario(;param::Parameter,coord_a::Vector{Float64},coord_b::Vecto
     return vario(coord=coord_a-coord_x0,param=param) + vario(coord=coord_b-coord_x0,param=param)-vario(coord=coord_a-coord_b,param=param)
 end
 
-#cov_fun_vario(param=param,coord_a=grid.coord_fine[5,:],coord_b=grid.coord_fine[2,:],coord_x0=grid.coord_x0)
 
 
 """calculate cov matrix for two matrices of coordinates and the variogramm given via param and normalized at ARBITRARY x0"""
@@ -56,8 +50,6 @@ function cov_mat_for_vectors(;coord_mat_a::Matrix{Float64}, coord_mat_b::Matrix{
     cov_mat
 end
 
-#cov_fun_vario(param=param,coord_a=grid.coord_fine[1,:], coord_b=grid.coord_fine[2,:], coord_x0=grid.coord_x0 )  
-#cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)
 
 """ simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
 #simulate numrep many exp(1/α[G(s)-G(x0)-γ(s-x0)])"""
@@ -108,11 +100,6 @@ function r_gaussian_sparse(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{
     N=size(grid.coord_coarse,1)+1
     cov_matrix = zeros(Float64, N, N)
     coord_coarse_plus_x0 = vcat(grid.coord_coarse, grid.coord_x0')
-    #for i in 1:N
-     #   for j in 1:N
-      #      cov_matrix[i, j] =  param.c*((norm(coord_coarse_plus_x0[i,:])^param.β + norm(coord_coarse_plus_x0[j,:])^param.β - norm(coord_coarse_plus_x0[i,:] - coord_coarse_plus_x0[j,:])^param.β)).+1.0
-    #    end
-    #end
     cov_matrix = cov_mat_for_vectors(coord_mat_a=coord_coarse_plus_x0, coord_mat_b=coord_coarse_plus_x0, param=param, coord_x0=grid.coord_x0).+1.0
     trend=vec_vario(param=param,coord_vec=coord_coarse_plus_x0,coord_x0=grid.coord_x0)
     
@@ -134,11 +121,6 @@ function r_W_sparse(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{
     N=size(grid.coord_coarse,1)+1
     cov_matrix = zeros(Float64, N, N)
     coord_coarse_plus_x0 = vcat(grid.coord_coarse, grid.coord_x0')
-    #for i in 1:N
-     #   for j in 1:N
-      #      cov_matrix[i, j] =  param.c*((norm(coord_coarse_plus_x0[i,:])^param.β + norm(coord_coarse_plus_x0[j,:])^param.β - norm(coord_coarse_plus_x0[i,:] - coord_coarse_plus_x0[j,:])^param.β)).+1.0
-    #    end
-    #end
     cov_matrix = cov_mat_for_vectors(coord_mat_a=coord_coarse_plus_x0, coord_mat_b=coord_coarse_plus_x0, param=param, coord_x0=grid.coord_x0).+1.0
     trend=vec_vario(param=param,coord_vec=coord_coarse_plus_x0,coord_x0=grid.coord_x0)
     
@@ -164,7 +146,6 @@ function r_cond_gaussian_observation_vectors(;param::Parameter,grid::Grid,num_si
     sigma_yy_inv = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param, coord_x0=grid.coord_x0 )) #hier 
     sigma_zy= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)'   
     res=[r_gaussian(param=param, grid=grid, num_sim=num_sim) for j in 1:size(cond_obs,1)]
-        #grid.coord_fine,param,grid.coord_x0,num_sim,alpha) for j in 1:size(cond_obs,1)]
     for j in 1:size(cond_obs,1)
         for i in 1:num_sim
             normalized_coarse_observation = cond_obs[j][1:end-1].-cond_obs[j][end]
@@ -180,12 +161,10 @@ function r_cond_gaussian_with_trafo(;param::Parameter,grid::Grid,num_sim::Int,ob
     sigma_yy_inv = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param, coord_x0=grid.coord_x0 )) #hier 
     sigma_zy= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)'   
     res=[r_gaussian(param=param, grid=grid, num_sim=num_sim) for j in 1:size(observation.obs_data,1)]
-        #grid.coord_fine,param,grid.coord_x0,num_sim,alpha) for j in 1:size(cond_obs,1)]
     for j in 1:size(observation.obs_data,1)
         for i in 1:num_sim
             #here observation is tranformed, sice we assume to observe W=exp(1/α G)=X/X_0 <=> G=α(log(X)-log(X_0)) 
             normalized_coarse_observation = param.α.*  (log.(observation.obs_data[j,:]).-log(observation.obs_x0[j]))
-            #
             res[j][i] =res[j][i] + sigma_zy*(sigma_yy_inv*(normalized_coarse_observation-res[j][i][grid.rows_coord_coarse])) #variogram
         end
     end
@@ -257,11 +236,7 @@ end
 """exceedance selection among all observations, but without the conditional simulation, only via the approximate risk functional, a.k.a. the mean of the coarse observations"""
 function exceed_cond_sim_approx(;observation::Observation,threshold::Float64)::Tuple{Observation, Vector{Float64}}
     num_obs=size(observation.obs_data,1)
-    #tmp_exp = r_cond_W(param=param, grid=grid, num_sim=num_runs+1,observation=observation)
-    #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
     res_ell_X = [0.0 for i in 1:num_obs] 
-
-   #old_value=r_cond_log_gaussian(observation_data[1,:],observation_x0[1], coord_fine,coord_coarse,param,row_x0)
     for i in 1:num_obs #direkt num_obs viele simulations 
         res_ell_X[i]=mean(vcat(observation.obs_data[i,:],observation.obs_x0[i]))
     end
@@ -315,7 +290,6 @@ end
 """ l3 = ∏( for i in observation) α (x_i(s_0)/thresh)^(-α-1) """
 
 function l_3_fun(;exceedance_observation::Observation, param::Parameter, threshold::Float64)::Float64
-    #sum([log(alpha*(observation_x0[i]/threshold)^(-alpha-1)) for i in 1:size(observation_x0,1)])
     sum([log(param.α)+log((exceedance_observation.obs_x0[i]/threshold))*(-param.α-1) for i in 1:size(exceedance_observation.obs_x0,1)])
 end
 
@@ -328,6 +302,7 @@ function l_2_fun(;param::Parameter, grid::Grid, N_est_c::Int, exceedance_observa
      # minus for 1/c_l (in log)
  end
 
+ """ l2_approx= est_approx(1/C) * size(obs) """
 function l_2_fun_approx(;param::Parameter, grid::Grid, N_est_c::Int, exceedance_observation::Observation)::Float64
     tmp = r_W_sparse(param = param, grid = grid, num_sim = N_est_c) 
     -size(exceedance_observation.obs_x0,1) * log(mean([mean(tmp[i] 

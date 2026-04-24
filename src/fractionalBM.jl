@@ -134,9 +134,4 @@ end
 
 
 
-#param=Parameter(α=1.0, β=2.0, c=3.0)
-#grid=Grid()
 
-#num_sim=100
-#FBM_res=FBM_simu_fast(param=param,grid=grid,num_sim=num_sim)
-#FBM_covmat_res=fBm(param=param,grid=grid,num_sim=num_sim)
