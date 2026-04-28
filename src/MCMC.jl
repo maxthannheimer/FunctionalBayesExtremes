@@ -1,4 +1,4 @@
-export MCMC, MCMC_approx
+export MCMC_, MCMC_approx_
 
 
 #this function proposes a new value uniformly distributed in a 2 eps window in between min_val and max_val arround the old_param
