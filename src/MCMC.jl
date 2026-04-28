@@ -55,7 +55,7 @@ end
 
 
 
-function MCMC(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Parameter, grid::Grid,N_est_c::Int,N_cond_sim::Int,N_est_d::Int)
+function MCMC_(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Parameter, grid::Grid,N_est_c::Int,N_cond_sim::Int,N_est_d::Int)
     num_obs=size(observation.obs_x0,1)
 
     param_vec = [Parameter(α=NaN, β=NaN, c=NaN) for i=1:N_MCMC+1]
@@ -106,12 +106,13 @@ function MCMC(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Pa
         param_vec[trial+1],log_likelihood_vec[trial] =parameter_update(param_old=param_vec[trial],param_new=param_eps,log_likelihood_old=log_likelihood_old,log_likelihood_new=log_likelihood_new)
         number_exceed_vec[trial]=size(exceedance_observation.obs_x0,1)
     end
+    println("MCMC finished")
     Dict( "param" => param_vec, "Number of exceedance"=> number_exceed_vec, "log_likelihood" => log_likelihood_vec, "res_ell_X" => res_ell_X_vec) # "log_likelihood_diff" => log_likelihood_diff_vec, "log_likelihood_diff_short" => log_likelihood_diff_vec_short)
 end  
 
 
 
-function MCMC_approx(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Parameter, grid::Grid,N_est_c::Int,N_cond_sim::Int,N_est_d::Int)
+function MCMC_approx_(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Parameter, grid::Grid,N_est_c::Int,N_cond_sim::Int,N_est_d::Int)
     num_obs=size(observation.obs_x0,1)
 
     param_vec = [Parameter(α=NaN, β=NaN, c=NaN) for i=1:N_MCMC+1]
@@ -161,5 +162,6 @@ function MCMC_approx(;N_MCMC::Int,observation::Observation,threshold::Float64,pa
         param_vec[trial+1],log_likelihood_vec[trial] =parameter_update(param_old=param_vec[trial],param_new=param_eps,log_likelihood_old=log_likelihood_old,log_likelihood_new=log_likelihood_new)
         number_exceed_vec[trial]=size(exceedance_observation.obs_x0,1)
     end
+    println("MCMC approx finished")
     Dict( "param" => param_vec, "Number of exceedance"=> number_exceed_vec, "log_likelihood" => log_likelihood_vec, "res_ell_X" => res_ell_X_vec) # "log_likelihood_diff" => log_likelihood_diff_vec, "log_likelihood_diff_short" => log_likelihood_diff_vec_short)
 end  

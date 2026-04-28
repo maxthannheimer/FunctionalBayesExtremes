@@ -2,11 +2,13 @@ using DrWatson
 using Distributions
 @quickactivate :FunctionalBayesExtremes
 
+
+date_string="2026_04_23"
 N_burn_in=2000
 quantile_val=0.1
 true_param=Parameter(α=0.5, β=1.5, c=3.0)
 true_param_dict=Dict("α" => true_param.α, "β" => true_param.β, "c" => true_param.c)
-total_simulation_number=size(readdir(datadir("exp_raw")),1)
+total_simulation_number=size(readdir(datadir("exp_raw",date_string)),1)
 
 
 
@@ -56,55 +58,6 @@ est_cond_sim_mean=Dict("β" => [NaN for i in 1:total_simulation_number],
 
 
 
-
-file_number=1
-    file_string=readdir(datadir("exp_raw"))
-    data_dict_tmp=load(datadir("exp_raw", file_string[file_number]))
-    grid=data_dict_tmp["grid"]
-
-
-
-
-FunctionalBayesExtremes.r_W_sparse(num_sim=1,grid=grid,param=true_param)
-
-
-for file_number in 1:size(readdir(datadir("exp_raw")),1)
-    file_string=readdir(datadir("exp_raw"))
-    data_dict_tmp=load(datadir("exp_raw", file_string[file_number]))
-    param_res_dict=Dict(
-        "α" => [param.α for param in data_dict_tmp["dict_MCMC"]["param"]],
-        "β" => [param.β for param in data_dict_tmp["dict_MCMC"]["param"]],
-        "c" => [param.c for param in data_dict_tmp["dict_MCMC"]["param"]]
-    )
-    param_res_dict_approx=Dict(
-        "α" => [param.α for param in data_dict_tmp["dict_MCMC_approx"]["param"]],
-        "β" => [param.β for param in data_dict_tmp["dict_MCMC_approx"]["param"]],
-        "c" => [param.c for param in data_dict_tmp["dict_MCMC_approx"]["param"]]
-    )
-    for key in keys(param_res_dict)
-                
-                    est_cond_sim_mean[key][file_number]=mean(param_res_dict[key][N_burn_in:end])
-                    est_cond_sim_sd[key][file_number]=std(param_res_dict[key][N_burn_in:end])
-                    est_cond_sim_median[key][file_number]=median(param_res_dict[key][N_burn_in:end])
-                    est_cond_sim_lower_quantile[key][file_number]=quantile(param_res_dict[key][N_burn_in:end], quantile_val)
-                    est_cond_sim_upper_quantile[key][file_number]=quantile(param_res_dict[key][N_burn_in:end], 1-quantile_val)
-                    est_approx_mean[key][file_number]=mean(param_res_dict_approx[key][N_burn_in:end])
-                    est_approx_median[key][file_number]=median(param_res_dict_approx[key][N_burn_in:end])
-                    est_approx_lower_quantile[key][file_number]=quantile(param_res_dict_approx[key][N_burn_in:end], quantile_val)
-                    est_approx_upper_quantile[key][file_number]=quantile(param_res_dict_approx[key][N_burn_in:end], 1-quantile_val)
-
-                    est_cond_sim_empirical_coverage[key][file_number]= ((est_cond_sim_lower_quantile[key][file_number] .<= true_param_dict[key] ) .* (est_cond_sim_upper_quantile[key][file_number] .>= true_param_dict[key] ))*1.0
-                    #est_cond_sim_empirical_coverage[key][number_parallel_int,number_sim_int]=sum( (est_cond_sim_lower_quantile[key][number_parallel_int,number_sim_int] .<= true_param[key] ) .* (est_cond_sim_upper_quantile[key][number_parallel_int,number_sim_int] .>= true_param[key] ) )*1.0
-                  
-                    (lower_quantile, upper_quantile)=quantile.(Normal(est_cond_sim_mean[key][file_number],est_cond_sim_sd[key][file_number]), [quantile_val, 1-quantile_val])
-                    est_cond_sim_normal_coverage[key][file_number]=( lower_quantile .<= true_param_dict[key] ) .* (upper_quantile .>= true_param_dict[key] )*1.0
-                    est_approx_empirical_coverage[key][file_number]=( (est_approx_lower_quantile[key][file_number] .<= true_param_dict[key] ) .* (est_approx_upper_quantile[key][file_number] .>= true_param_dict[key] ) )*1.0
-                    #cond_sim_empirical_coverage[key][number_parallel_int,number_sim_int]=sum( (est_cond_sim_lower_quantile[key][number_parallel_int,number_sim_int] .<= true_param[key] ) && (est_cond_sim_upper_quantile[key][number_parallel_int,number_sim_int] .>= true_param[key] ) )*1.0
-                    #approx_empirical_coverage[key][number_parallel_int,number_sim_int]=sum( (est_approx_lower_quantile[key][number_parallel_int,number_sim_int] .<= true_param[key] ) && (est_approx_upper_quantile[key][number_parallel_int,number_sim_int] .>= true_param[key] ) )*1.0
-                    est_cond_sim_interval_width[key][file_number]=est_cond_sim_upper_quantile[key][file_number]-est_cond_sim_lower_quantile[key][file_number]
-                    est_approx_interval_width[key][file_number]=est_approx_upper_quantile[key][file_number]-est_approx_lower_quantile[key][file_number]
-    end
-
     RMSE_cond_sim_mean=Dict( "β" => NaN, 
                         "c" => NaN, 
                         "α" => NaN)
@@ -147,6 +100,45 @@ for file_number in 1:size(readdir(datadir("exp_raw")),1)
     approx_empirical_coverage=Dict( "β" => NaN,
                         "c" => NaN, 
                         "α" => NaN) 
+
+
+
+for file_number in 1:size(readdir(datadir("exp_raw",date_string)),1)
+    file_string=readdir(datadir("exp_raw",date_string))
+    data_dict_tmp=load(datadir("exp_raw", date_string, file_string[file_number]))
+    param_res_dict=Dict(
+        "α" => [param.α for param in data_dict_tmp["dict_MCMC"]["param"]],
+        "β" => [param.β for param in data_dict_tmp["dict_MCMC"]["param"]],
+        "c" => [param.c for param in data_dict_tmp["dict_MCMC"]["param"]]
+    )
+    param_res_dict_approx=Dict(
+        "α" => [param.α for param in data_dict_tmp["dict_MCMC_approx"]["param"]],
+        "β" => [param.β for param in data_dict_tmp["dict_MCMC_approx"]["param"]],
+        "c" => [param.c for param in data_dict_tmp["dict_MCMC_approx"]["param"]]
+    )
+    for key in keys(param_res_dict)
+                
+                    est_cond_sim_mean[key][file_number]=mean(param_res_dict[key][N_burn_in:end])
+                    est_cond_sim_sd[key][file_number]=std(param_res_dict[key][N_burn_in:end])
+                    est_cond_sim_median[key][file_number]=median(param_res_dict[key][N_burn_in:end])
+                    est_cond_sim_lower_quantile[key][file_number]=quantile(param_res_dict[key][N_burn_in:end], quantile_val)
+                    est_cond_sim_upper_quantile[key][file_number]=quantile(param_res_dict[key][N_burn_in:end], 1-quantile_val)
+                    est_approx_mean[key][file_number]=mean(param_res_dict_approx[key][N_burn_in:end])
+                    est_approx_median[key][file_number]=median(param_res_dict_approx[key][N_burn_in:end])
+                    est_approx_lower_quantile[key][file_number]=quantile(param_res_dict_approx[key][N_burn_in:end], quantile_val)
+                    est_approx_upper_quantile[key][file_number]=quantile(param_res_dict_approx[key][N_burn_in:end], 1-quantile_val)
+
+                    est_cond_sim_empirical_coverage[key][file_number]= ((est_cond_sim_lower_quantile[key][file_number] .<= true_param_dict[key] ) .* (est_cond_sim_upper_quantile[key][file_number] .>= true_param_dict[key] ))*1.0
+                    #est_cond_sim_empirical_coverage[key][number_parallel_int,number_sim_int]=sum( (est_cond_sim_lower_quantile[key][number_parallel_int,number_sim_int] .<= true_param[key] ) .* (est_cond_sim_upper_quantile[key][number_parallel_int,number_sim_int] .>= true_param[key] ) )*1.0
+                  
+                    (lower_quantile, upper_quantile)=quantile.(Normal(est_cond_sim_mean[key][file_number],est_cond_sim_sd[key][file_number]), [quantile_val, 1-quantile_val])
+                    est_cond_sim_normal_coverage[key][file_number]=( lower_quantile .<= true_param_dict[key] ) .* (upper_quantile .>= true_param_dict[key] )*1.0
+                    est_approx_empirical_coverage[key][file_number]=( (est_approx_lower_quantile[key][file_number] .<= true_param_dict[key] ) .* (est_approx_upper_quantile[key][file_number] .>= true_param_dict[key] ) )*1.0
+                    #cond_sim_empirical_coverage[key][number_parallel_int,number_sim_int]=sum( (est_cond_sim_lower_quantile[key][number_parallel_int,number_sim_int] .<= true_param[key] ) && (est_cond_sim_upper_quantile[key][number_parallel_int,number_sim_int] .>= true_param[key] ) )*1.0
+                    #approx_empirical_coverage[key][number_parallel_int,number_sim_int]=sum( (est_approx_lower_quantile[key][number_parallel_int,number_sim_int] .<= true_param[key] ) && (est_approx_upper_quantile[key][number_parallel_int,number_sim_int] .>= true_param[key] ) )*1.0
+                    est_cond_sim_interval_width[key][file_number]=est_cond_sim_upper_quantile[key][file_number]-est_cond_sim_lower_quantile[key][file_number]
+                    est_approx_interval_width[key][file_number]=est_approx_upper_quantile[key][file_number]-est_approx_lower_quantile[key][file_number]
+    end
 
     for key in keys(est_approx_mean)
                 RMSE_cond_sim_mean[key]=round(mean((est_cond_sim_mean[key].-true_param_dict[key]).^2)^0.5 , digits=3)
@@ -204,17 +196,14 @@ end
 
 
 
-
-
-
 using Plots
 file_number=0
 
 
 
-    file_number+=1
-    file_string=readdir(datadir("exp_raw"))
-    data_dict_tmp=load(datadir("exp_raw", file_string[file_number]))
+    file_number=file_number+1
+    file_string=readdir(datadir("exp_raw", date_string))
+    data_dict_tmp=load(datadir("exp_raw", date_string, file_string[file_number]))
     param_res_dict=Dict(
         "α" => [param.α for param in data_dict_tmp["dict_MCMC"]["param"]],
         "β" => [param.β for param in data_dict_tmp["dict_MCMC"]["param"]],
@@ -254,3 +243,35 @@ file_number=0
         println("c")
     mean(param_res_dict["c"][N_burn_in:end])
     mean(param_res_dict_approx["c"][N_burn_in:end])
+
+
+
+observation=data_dict_tmp["observation"]
+grid=data_dict_tmp["grid"]  
+N_hist=300
+coarse_est_vec=   [    FunctionalBayesExtremes.l_2_fun_approx(param=true_param,grid=grid,N_est_c=20000,exceedance_observation=observation) for i in 1:N_hist]
+
+@time (
+fine_est_vec=   [    FunctionalBayesExtremes.l_2_fun(param=true_param,grid=grid,N_est_c=20000,exceedance_observation=observation) for i in 1:N_hist]
+)
+
+
+save(datadir("exp_processed", date_string, "coarse_est_vec.jld2"), "coarse_est_vec", coarse_est_vec)
+save(datadir("exp_processed", date_string, "fine_est_vec.jld2"), "fine_est_vec", fine_est_vec)
+coarse_est_vec=load(datadir("exp_processed", date_string, "coarse_est_vec.jld2"), "coarse_est_vec")
+fine_est_vec=load(datadir("exp_processed", date_string, "fine_est_vec.jld2"), "fine_est_vec")
+
+
+histogram(coarse_est_vec, title="Coarse estimation of l_2", label="l_2 coarse estimates", xlabel="l_2 estimate", ylabel="Frequency")    
+mean(coarse_est_vec)
+std(coarse_est_vec)
+
+histogram(fine_est_vec, title="Fine estimation of l_2", label="l_2 fine estimates", xlabel="l_2 estimate", ylabel="Frequency")    
+mean(fine_est_vec)
+std(fine_est_vec)
+
+data_dict_tmp["dict_MCMC_approx"]["param"][N_burn_in:end]
+data_dict_tmp["dict_MCMC"]["param"][1:end]
+
+
+[param.α for param in data_dict_tmp["dict_MCMC"]["param"]]

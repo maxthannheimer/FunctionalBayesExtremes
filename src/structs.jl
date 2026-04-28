@@ -1,7 +1,7 @@
 """ Here different structs are defined, which are used in the rest of the code. """
 
 using StatsBase
-export Parameter, default_Grid, Grid, Observation
+export Parameter, default_Grid, Grid, Observation, small_default_Grid
 
 """ Struct for the parameters of the model. """
 struct Parameter
@@ -17,6 +17,7 @@ end
 
 
 """ Struct for to generate a grid, two constructors for generating an arbitrary grid and one for a fixed 9x9 grid with predifined points. """
+
 """ The grid struct contains the following fields:
 - gridsize: the size of the grid (number of points in one dimension)
 - N_coarse: the number of coarse points representing the observations
@@ -67,9 +68,26 @@ function default_Grid()
         Grid(gridsize, N_coarse, coord_fine, coord_coarse, rows_coord_coarse, x0,coord_fine[x0,:])
 end
 
+function small_default_Grid()
+        gridsize=6
+        N_coarse=2
+        coord_fine=ones(gridsize*gridsize,2)
+        for x in 0:(gridsize-1) 
+            for y in 0:(gridsize-1)
+                coord_fine[y+x*gridsize+1,2]=x/(gridsize)
+                coord_fine[y+x*gridsize+1,1]=y/(gridsize)
+            end
+        end
+        rows_coord_coarse = [8,11,26]
+        coord_coarse = coord_fine[rows_coord_coarse,:]
+        x0 = 29 # index of the normalization point
+        Grid(gridsize, N_coarse, coord_fine, coord_coarse, rows_coord_coarse, x0,coord_fine[x0,:])
+end
+
 
 
 """ Struct for the Observation Simulation. """
+
 """ Here we store the simulated and observed data along with the normalization point. """
 struct Observation
     sim_data::Matrix{Float64}
