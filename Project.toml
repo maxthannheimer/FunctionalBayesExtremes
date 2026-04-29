@@ -9,8 +9,10 @@ Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 DrWatson = "634d3b9d-ee7a-5ddf-bec9-22491ea816e1"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
 DrWatson = "2.19.1"
+PrettyTables = "3.3.2"
 julia = "1.12.5"

@@ -1,10 +1,16 @@
 using DrWatson
 using Distributions
-@quickactivate :FunctionalBayesExtremes
+#@quickactivate :FunctionalBayesExtremes
+include(srcdir("FunctionalBayesExtremes_MODULE.jl"))
+using .FunctionalBayesExtremes_MODULE
+using PrettyTables
+""" RSME, BIAS, empirical coverage and interval width calculation for the conditional simulation and the approximation method"""
 
-
-date_string="2026_04_23"
-N_burn_in=2000
+####################
+#set name of the simulation results folder
+date_string="2026_04_28"
+####################
+N_burn_in=1000
 quantile_val=0.1
 true_param=Parameter(α=0.5, β=1.5, c=3.0)
 true_param_dict=Dict("α" => true_param.α, "β" => true_param.β, "c" => true_param.c)
@@ -12,7 +18,7 @@ total_simulation_number=size(readdir(datadir("exp_raw",date_string)),1)
 
 
 
-
+#empty dicts to store results and evaluation metrics
 est_cond_sim_mean=Dict("β" => [NaN for i in 1:total_simulation_number], 
                         "c" => [NaN for i in 1:total_simulation_number], 
                         "α" => [NaN for i in 1:total_simulation_number])
@@ -102,9 +108,10 @@ est_cond_sim_mean=Dict("β" => [NaN for i in 1:total_simulation_number],
                         "α" => NaN) 
 
 
-
+#here starts the actual calculation
 for file_number in 1:size(readdir(datadir("exp_raw",date_string)),1)
-    file_string=readdir(datadir("exp_raw",date_string))
+#file_number=1 
+file_string=readdir(datadir("exp_raw",date_string))
     data_dict_tmp=load(datadir("exp_raw", date_string, file_string[file_number]))
     param_res_dict=Dict(
         "α" => [param.α for param in data_dict_tmp["dict_MCMC"]["param"]],
@@ -116,8 +123,7 @@ for file_number in 1:size(readdir(datadir("exp_raw",date_string)),1)
         "β" => [param.β for param in data_dict_tmp["dict_MCMC_approx"]["param"]],
         "c" => [param.c for param in data_dict_tmp["dict_MCMC_approx"]["param"]]
     )
-    for key in keys(param_res_dict)
-                
+    for key in keys(param_res_dict)          
                     est_cond_sim_mean[key][file_number]=mean(param_res_dict[key][N_burn_in:end])
                     est_cond_sim_sd[key][file_number]=std(param_res_dict[key][N_burn_in:end])
                     est_cond_sim_median[key][file_number]=median(param_res_dict[key][N_burn_in:end])
@@ -182,19 +188,23 @@ end
 
 
 
-    est_cond_sim_mean
+   
+""" print results in a pretty table"""   
+key_array=["β", "c", "α"]
+pretty_table_data=Dict{String,Vector{Any}}()
+    for key in key_array
+        pretty_table_data[key]=[true_param_dict[key],RMSE_est_approx_mean[key], RMSE_est_approx_median[key], BIAS_approx_mean[key], BIAS_approx_median[key], approx_empirical_coverage[key], 
+                                RMSE_cond_sim_mean[key], RMSE_cond_sim_median[key], BIAS_cond_sim_mean[key], BIAS_cond_sim_median[key], cond_sim_empirical_coverage[key], cond_sim_normal_coverage[key]]
+    end
+data=hcat([pretty_table_data[key] for key in key_array]...)'
+column_labels =[["Parameter", "RMSE_Mean", "RMSE_Median", "BIAS_Mean", "BIAS_Median", "Emp_Coverage", "RMSE_Mean", "RMSE_Median", "BIAS_Mean", "BIAS_Median", "Emp_Coverage", "Normal_Coverage"],
+                [ "", "approx", "", "", "", "", "cond", "", "", "", "", ""]]
+pretty_table(data; column_labels)
 
 
-    
 
 
-
-
-
-
-
-
-
+"""Plotting α,β and c for different realisations of the MCMC and MCMC_approx chains"""
 
 using Plots
 file_number=0
@@ -202,6 +212,7 @@ file_number=0
 
 
     file_number=file_number+1
+    file_number=48
     file_string=readdir(datadir("exp_raw", date_string))
     data_dict_tmp=load(datadir("exp_raw", date_string, file_string[file_number]))
     param_res_dict=Dict(
@@ -232,18 +243,42 @@ file_number=0
 
     plot(plots[1],plots[4],plots[2],plots[5],plots[3],plots[6], layout=(3,2),size=(1200, 800))
 
+    #Plot Number of Exceed and likelhood
+    plot(1:length(data_dict_tmp["dict_MCMC"]["Number of exceedance"]), data_dict_tmp["dict_MCMC"]["Number of exceedance"])
+    plot(1:length(data_dict_tmp["dict_MCMC"]["log_likelihood"]), data_dict_tmp["dict_MCMC"]["log_likelihood"])
+
+
+
+
+#check for large deviations in c estimation
+sort(est_cond_sim_mean["c"])
+sort(est_approx_mean["c"])
+
+for i in 1:size(readdir(datadir("exp_raw", date_string)),1)
+if est_cond_sim_mean["c"][i] > 4
+    println("Simulation number: ", i, " has a mean estimate of c larger than 5: ", est_cond_sim_mean["c"][i])
+end
+end
+
+
+
+# β   
     println("β")
     mean(param_res_dict["β"][N_burn_in:end])
     mean(param_res_dict_approx["β"][N_burn_in:end])
-
-        println("α")
+# α
+    println("α")
     mean(param_res_dict["α"][N_burn_in:end])
     mean(param_res_dict_approx["α"][N_burn_in:end])
-
-        println("c")
+# c
+    println("c")
     mean(param_res_dict["c"][N_burn_in:end])
     mean(param_res_dict_approx["c"][N_burn_in:end])
 
+
+
+
+"""Repeated l2 estimation for approx and cond sim, then histogram, mean and standarddeviation"""
 
 
 observation=data_dict_tmp["observation"]
@@ -269,9 +304,3 @@ std(coarse_est_vec)
 histogram(fine_est_vec, title="Fine estimation of l_2", label="l_2 fine estimates", xlabel="l_2 estimate", ylabel="Frequency")    
 mean(fine_est_vec)
 std(fine_est_vec)
-
-data_dict_tmp["dict_MCMC_approx"]["param"][N_burn_in:end]
-data_dict_tmp["dict_MCMC"]["param"][1:end]
-
-
-[param.α for param in data_dict_tmp["dict_MCMC"]["param"]]
