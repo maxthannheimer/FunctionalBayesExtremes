@@ -8,12 +8,12 @@ using PrettyTables
 
 ####################
 #set name of the simulation results folder
-date_string="2026_04_29"
+date_string="2026_05_06"
 ####################
-N_burn_in=1000
+N_burn_in=2000
 quantile_val=0.1
-true_param=Parameter(α=0.5, β=1.5, c=3.0)
-#true_param=Parameter(α=2.0, β=0.5, c=3.0)
+#true_param=Parameter(α=0.5, β=1.5, c=3.0)
+true_param=Parameter(α=2.0, β=0.5, c=3.0)
 true_param_dict=Dict("α" => true_param.α, "β" => true_param.β, "c" => true_param.c)
 total_simulation_number=size(readdir(datadir("exp_raw",date_string)),1)
 

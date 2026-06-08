@@ -73,7 +73,7 @@ end
 
 """ Function to generate a fractional Brownian motion samples using circulant embedding method """
 
-function FBM_simu_fast(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector{Float64}}
+function FBM_simu_fast_independent(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector{Float64}}
     gridsize=grid.gridsize
     c_sqrt=sqrt(param.c)
     H=param.β/2 #Hurst Param
@@ -134,4 +134,66 @@ end
 
 
 
+""" Function to generate a fractional Brownian motion samples using circulant embedding method """
+
+""" dependent simulations, i.e. both the real and the imaginary part of the gaussian are used, but they are dependend, so not twice as many simulations for free, but more efficient than independent simulations """ 
+function FBM_simu_fast(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector{Float64}}
+    gridsize=grid.gridsize
+    c_sqrt=sqrt(param.c)
+    H=param.β/2 #Hurst Param
+    if param.β<1.1 #TODO: check if this is correct, literature says a<=1.5, we used a<=1.1
+        R=1
+    else
+        R=2 #expanded gridsize, region of interest is [0,1]×[0.1]
+    end
+    n=m=R*gridsize #size of grid is m ∗ n, cov mat size is n^2*m^2
+    tx=(1:n)/n*R; ty=(1:m)/m*R #grid points in x and y 
+    Rows=zeros(m,n)
+    for i in 1:n 
+        for j in 1:m
+            Rows[j,i]=rho([tx[i],ty[j]],[tx[1],ty[1]],R,2*H)[1]
+        end
+    end
+    BlkCirc_row=[Rows  Rows[:,end-1:-1:2] ;  Rows[end-1:-1:2,:]  Rows[end-1:-1:2,end-1:-1:2 ]  ]
+    #calculate eigenvalues via fft
+    eig_vals=real(fft2(BlkCirc_row)/(4*(m-1)*(n-1)))
+    #optional:
+    #set small values to zero:
+    #eps = 10^-8
+    #eig_vals=eig_vals.*(abs.(eig_vals) .> eps)
+    #eig_vals=eig_vals.*(eig_vals .>= 0)
+    eig_vals=sqrt.(eig_vals)
+   
+    res1=[Vector{Float64}(undef,gridsize*gridsize) for i in 1:num_sim]
+    #res2=[Vector{Float64}(undef,gridsize*gridsize) for i in 1:num_sim]
+    #one can get two times as many simulations for free by using the imaginary and real part 
+    #of the complex gaussian, but they are dependend
+    
+    #res2=[Matrix{Float64}(undef,gridsize,gridsize) for i in 1:num_sim]
+    
+    for trial in 1:(num_sim÷2)
+        #generate field with covariance given by block circulant matrix
+        Z= randn(2*(m-1),2*(n-1)) + im* randn(2*(m-1),2*(n-1)) 
+        #fft to calculate diag*Z
+        F=fft2(eig_vals.*Z)
+        #extract subblock with desired cov variance
+        F=F[1:gridsize,1:gridsize]
+        (out,c_0,c_2)=rho([0,0],[0,0],R,2*H)
+        #optional two (dependend) real fields
+        field1=real(F)
+        field2=imag(F)
+        #set field zero at origin
+        field1=field1.-field1[1,1]
+        field2=field2.-field2[1,1]
+        #make correction for embedding with a term c_2*r^2
+        X_grid_comp = [i for i in tx[1:gridsize], j in tx[1:gridsize]].-tx[1]
+        Y_grid_comp = [j for i in tx[1:gridsize], j in tx[1:gridsize]].-tx[1]
+    
+        res1[trial]=vec((field1 + (X_grid_comp*randn()+Y_grid_comp*randn() ) .*sqrt(2*c_2))')
+        res1[trial+num_sim÷2]=vec((field2 + (X_grid_comp*randn()+Y_grid_comp*randn() ) .*sqrt(2*c_2))')
+    end
+
+    #(c_sqrt.*res1,c_sqrt.*res2)
+    c_sqrt.*res1
+end
 

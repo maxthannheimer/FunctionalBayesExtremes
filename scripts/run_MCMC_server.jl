@@ -11,11 +11,11 @@ N_MCMC=10000
 for i in 1:10
 observation=Observation(param=param,grid=grid,num_runs=3000,num_sim=100)
 @time (
-dict_MCMC=MCMC_(N_MCMC=N_MCMC,observation=observation,threshold=1.0,param=param, grid=grid,N_est_c=40000,N_cond_sim=100,N_est_d=600)
+dict_MCMC=MCMC_(N_MCMC=N_MCMC,observation=observation,threshold=1.0,param=param, grid=grid,N_est_c=25000,N_cond_sim=400,N_est_d=400)
 )
 
 @time (
-dict_MCMC_approx=MCMC_approx_(N_MCMC=N_MCMC,observation=observation,threshold=1.0,param=param, grid=grid,N_est_c=40000,N_cond_sim=100,N_est_d=600)
+dict_MCMC_approx=MCMC_approx_(N_MCMC=N_MCMC,observation=observation,threshold=1.0,param=param, grid=grid,N_est_c=25000,N_cond_sim=400,N_est_d=400)
 )
 
 save("Simulations_MCMC_test_"*randstring(20)*".jld2", "dict_MCMC",dict_MCMC,"dict_MCMC_approx",dict_MCMC_approx,"grid",grid,"param",param,"observation",observation)

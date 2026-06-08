@@ -233,6 +233,44 @@ function exceed_cond_sim(;num_runs::Int,observation::Observation,threshold::Floa
     end
 end
 
+""" exceedance selection among all observations and l4_etsimation,
+    output:
+    Observation object containing only exceedances over threshold
+    risk functional value for each observation
+    l4 estimate for exceedance observations"""
+
+function exceed_cond_sim_and_l4(;num_runs::Int,observation::Observation,threshold::Float64, param::Parameter, grid::Grid )::Tuple{Observation, Vector{Float64},Float64}
+    num_obs=size(observation.obs_data,1)
+    tmp_exp = r_cond_W(param=param, grid=grid, num_sim=num_runs+1,observation=observation)
+    #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
+    res_ell_X = [0.0 for i in 1:num_obs] 
+    N_est_d =num_runs+1
+    #l4 estimation
+    res_est_prob =l_4_fun_cond_W_input(exceedance_observation=observation, threshold=threshold, N_est_d=N_est_d, cond_W_simu=tmp_exp)
+   #old_value=r_cond_log_gaussian(observation_data[1,:],observation_x0[1], coord_fine,coord_coarse,param,row_x0)
+   for i in 1:num_obs #direkt num_obs viele simulations 
+        old_value = tmp_exp[i][1]
+        for trial in 1:num_runs
+            proposal = tmp_exp[i][trial+1]
+            acceptance_rate = min(1,mean(proposal)^param.α/mean(old_value)^param.α)   
+            if (rand()< acceptance_rate)
+                old_value=proposal
+            end
+        end
+        res_ell_X[i]=observation.obs_x0[i]*mean(old_value)
+    end
+    if sum(res_ell_X.>threshold)==0
+        Base._throw_argerror("not a single threshold exceedance")
+    else
+        #likelihood calculation and param updates
+        #find all threshold exccedances and calculate the log of them
+        ind=findall(res_ell_X.>threshold)
+        exceed_obs=Observation(observation.sim_data, observation.obs_data[ind,:], observation.obs_x0[ind])
+        l4=sum(log.(res_est_prob[ind]))
+        (exceed_obs,res_ell_X,l4)
+    end
+end
+
 """exceedance selection among all observations, but without the conditional simulation, only via the approximate risk functional, a.k.a. the mean of the coarse observations"""
 function exceed_cond_sim_approx(;observation::Observation,threshold::Float64)::Tuple{Observation, Vector{Float64}}
     num_obs=size(observation.obs_data,1)
@@ -268,7 +306,18 @@ function l_4_fun(;exceedance_observation:: Observation, threshold::Float64, para
     return sum(log.(res_est_prob))
 end
 
-
+"""same l4 estimator but with the conditional simulations as input for more efficiency"""
+function l_4_fun_cond_W_input(;exceedance_observation:: Observation, threshold::Float64,N_est_d::Int, cond_W_simu:: Vector{Vector{Vector{Float64}}})::Vector{Float64}
+    num_obs=size(exceedance_observation.obs_data,1)
+    #Here simulations of W via W=exp(1/α G)
+    tmp_exp = cond_W_simu
+    res_est_prob = [0.0 for i in 1:num_obs] 
+    for i in 1:num_obs #direkt num_obs viele simulations 
+            counter = [mean(tmp_exp[i][trial]) for trial in 1:N_est_d].>threshold/exceedance_observation.obs_x0[i]
+            res_est_prob[i] = sum(counter)/N_est_d
+    end
+    return res_est_prob
+end
 
 """ l1= ∏(for i in observation) f_W(x_i/x_i(s0)) 
     use the exceedance observations and evaluate all the coarse gride densities f_W(x_i/x_i(s0)) for the log gaussian distrib W"""
@@ -295,12 +344,70 @@ end
 
 """ l2= est(1/C) * size(obs) """
 
-function l_2_fun(;param::Parameter, grid::Grid, N_est_c::Int, exceedance_observation::Observation)::Float64
+function l_2_fun_direct(;param::Parameter, grid::Grid, N_est_c::Int, exceedance_observation::Observation)::Float64
     tmp = r_W(param = param, grid = grid, num_sim = N_est_c) 
     -size(exceedance_observation.obs_x0,1) * log(mean([mean(tmp[i] 
         )^(param.α) for i in 1:N_est_c]))  
      # minus for 1/c_l (in log)
  end
+
+"""  l2= est(1/C) * size(obs)  """
+
+""" we use a flexible number of simulations for the estimation adjusted by the sample variance to get more accuracy when needed """
+
+function l_2_fun(;param::Parameter, grid::Grid, N_est_c::Int,N_est_c_lim::Int, quot_bound::Float64,exceedance_observation::Observation)::Float64
+    #Limit for samples to estimate C, if this is reached, the fucntion will use this as N_est_c
+    Number_of_exceed = size(exceedance_observation.obs_x0,1)
+
+    N=N_est_c #initial number of samples
+    
+    tmp=0 #temporary variable to store the samples start with integer zero to initialize the variable via naive if clause
+    
+    N_sampled=0 #number of samples already taken
+    
+    #original code
+    #tmp = r_W(param = param, grid = grid, num_sim = N_est_c) 
+    #-Number_of_exceed* log(mean([mean(tmp[i] 
+    #    )^(param.α) for i in 1:N_est_c]))  
+     # minus for 1/c_l (in log)
+
+    while(true)
+        if tmp==0
+            tmp = r_W(param = param, grid = grid, num_sim = N-N_sampled)  
+            #r_log_gaussian_vec_dependent(coord_fine,param,row_x0, N-N_sampled,alpha) #initial sampling
+        else
+            tmp = vcat(tmp,r_W(param = param, grid = grid, num_sim = N-N_sampled)) #we want N samples, so we sample N-N_sampled more
+        end
+        N_sampled = N #keep track of how many samples we have taken
+        #println("N_sampled: ", N_sampled)
+        r_W_alpha_sample =[mean( tmp[i] )^(param.α) for i in 1:N] #N samples of r(W)^α
+        mean_r_W_alpha_sample = mean(r_W_alpha_sample) #mean of samples,i.e. empiricalmean estimate of r(W)^α
+        if (1/mean_r_W_alpha_sample*sqrt(1/N*var(r_W_alpha_sample)) < quot_bound) #if the quotient between empirical variance and empirical mean is small enough, we can stop sampling
+            return -Number_of_exceed*log( mean_r_W_alpha_sample)  
+        else
+            #otherwise we make N so big that the quotient is small enough
+            N=Int(round(1/(mean_r_W_alpha_sample)^2*var(r_W_alpha_sample)/ quot_bound^2)+1)
+            #println("N: ", N)
+            #if limit is reached, we stop sampling and estimate with N_est_c_lim samples
+            if N>=N_est_c_lim
+                N_suggested = N
+                N=N_est_c_lim
+                #tmp = vcat(tmp,r_log_gaussian_vec_dependent(coord_fine,param,row_x0, N-N_sampled,alpha))
+                #r_W_alpha_sample =  [mean( tmp[i] )^(alpha) for i in 1:N]
+                tmp = vcat(tmp,r_W(param = param, grid = grid, num_sim = N-N_sampled))
+                r_W_alpha_sample =  [mean( tmp[i] )^(param.α) for i in 1:N]
+
+                mean_r_W_alpha_sample = mean(r_W_alpha_sample)
+                @warn "N has reached upper limit of $N_est_c_lim , might fluctuate a lot, sufficently large N would be $N_suggested"
+                return -Number_of_exceed*log( mean_r_W_alpha_sample)
+            end
+        end
+    end
+
+ end
+
+
+
 
  """ l2_approx= est_approx(1/C) * size(obs) """
 function l_2_fun_approx(;param::Parameter, grid::Grid, N_est_c::Int, exceedance_observation::Observation)::Float64
