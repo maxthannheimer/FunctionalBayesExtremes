@@ -53,7 +53,7 @@ function log_likehood_log_gauss_1d_non_normalized(x,mu,sigma)
     (-0.5*(log(x)-mu)^2/sigma^2)
 end
 
-
+""" Main functions for MCMC algorithm """
 
 """ standard procedure with no clever tricks, only use of modification use of img and real part in fbm simulation"""
 function MCMC_basic(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Parameter, grid::Grid,N_est_c::Int,N_cond_sim::Int,N_est_d::Int)
@@ -111,6 +111,7 @@ function MCMC_basic(;N_MCMC::Int,observation::Observation,threshold::Float64,par
     Dict( "param" => param_vec, "Number of exceedance"=> number_exceed_vec, "log_likelihood" => log_likelihood_vec, "res_ell_X" => res_ell_X_vec) # "log_likelihood_diff" => log_likelihood_diff_vec, "log_likelihood_diff_short" => log_likelihood_diff_vec_short)
 end  
 
+""" MCMC procedure using real and imaginary part in fbm simulation, reusing exceedance samples for l4 calculation, and using a variable sample size depending on the sample variance for l2 calculation to save time """
 
 function MCMC_(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Parameter, grid::Grid,N_est_c::Int,N_cond_sim::Int,N_est_d::Int)
     quot_bound=0.05
@@ -170,6 +171,67 @@ function MCMC_(;N_MCMC::Int,observation::Observation,threshold::Float64,param::P
 end  
 
 
+""" MCMC procedure also using same gaussian samples to construct the proposed param likelihood and the current one, rest as above, i.e. using real and imaginary part in fbm simulation, reusing exceedance samples for l4 calculation, and using a variable sample size depending on the sample variance for l2 calculation to save time """
+
+function MCMC_double_param(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Parameter, grid::Grid,N_est_c::Int,N_cond_sim::Int,N_est_d::Int)
+    quot_bound=0.05
+    N_est_c_lim=2_500_000
+    num_obs=size(observation.obs_x0,1)
+
+    param_vec = [Parameter(α=NaN, β=NaN, c=NaN) for i=1:N_MCMC+1]
+    param_vec[1]=param
+    number_exceed_vec = [NaN for i=1:N_MCMC]
+    log_likelihood_vec = [NaN for i=1:N_MCMC]
+    res_ell_X_vec = [[NaN for i in 1:num_obs] for j in 1:N_MCMC] 
+    
+    for trial in 1:N_MCMC
+
+        #propose new params
+        eps_beta=0.05 # 0.05 -> 0.025
+        eps_c=0.1 #0.1 -> 0.05
+        eps_alpha=0.1 #0.1 -> 0.05
+        beta_eps,old_interval,new_interval=uniform_proposal(param_vec[trial].β,eps_beta,0.0,2.0)
+        param_eps=Parameter(c=gaussian_proposal(param_vec[trial].c,eps_c),β=beta_eps,α=gaussian_proposal(param_vec[trial].α,eps_alpha))
+
+        (exceedance_observation, res_ell_X_vec[trial],l4) = exceed_cond_sim_and_l4(num_runs=N_cond_sim, observation=observation, threshold=threshold, param=param_vec[trial], grid=grid )
+
+       
+
+      
+        l1=l_1_fun(param=param_vec[trial], grid=grid,exceedance_observation=exceedance_observation)   
+        l2=l_2_fun(param=param_vec[trial], grid=grid, N_est_c=N_est_c, N_est_c_lim=N_est_c_lim, quot_bound=quot_bound, exceedance_observation=exceedance_observation)
+        l3=l_3_fun(exceedance_observation=exceedance_observation, param=param_vec[trial], threshold=1.0)
+        #l4=l_4_fun(exceedance_observation=exceedance_observation, threshold=1.0, param=param_vec[trial], grid=grid ,N_est_d=N_est_d)
+        #l4 is already calculated in the exceed_cond_sim_and_l4 function, so we can save some time by not calculating it again here
+
+
+
+
+        prior = log_likehood_log_gauss_1d_non_normalized(param_vec[trial].c,0.0,1.5)+log_likehood_log_gauss_1d_non_normalized(param_vec[trial].α,0.0,1.0)
+        log_likelihood_old=sum([l1,l2,l3,l4,prior,-log(old_interval)]) #-log interval length of uniform proposal for beta
+      
+        l1=l_1_fun(param=param_eps, grid=grid,exceedance_observation=exceedance_observation)   
+        l2=l_2_fun(param=param_eps, grid=grid, N_est_c=N_est_c, N_est_c_lim=N_est_c_lim, quot_bound=quot_bound, exceedance_observation=exceedance_observation)
+        l3=l_3_fun(exceedance_observation=exceedance_observation, param=param_eps, threshold=1.0)
+        l4=l_4_fun(exceedance_observation=exceedance_observation, threshold=1.0, param=param_eps, grid=grid ,N_est_d=N_cond_sim+1)
+
+
+
+
+        prior = log_likehood_log_gauss_1d_non_normalized(param_eps.c,0.0,1.5)+log_likehood_log_gauss_1d_non_normalized(param_eps.α,0.0,1.0)
+
+        log_likelihood_new=sum([l1,l2,l3,l4,prior,-log(new_interval)]) #-log interval length of uniform proposal for beta
+
+        #MCMC update of param according to acceptance rate calculated with old and new likelihoods
+        #update and safe param after MCMC step
+        param_vec[trial+1],log_likelihood_vec[trial] =parameter_update(param_old=param_vec[trial],param_new=param_eps,log_likelihood_old=log_likelihood_old,log_likelihood_new=log_likelihood_new)
+        number_exceed_vec[trial]=size(exceedance_observation.obs_x0,1)
+    end
+    println("MCMC finished")
+    Dict( "param" => param_vec, "Number of exceedance"=> number_exceed_vec, "log_likelihood" => log_likelihood_vec, "res_ell_X" => res_ell_X_vec) # "log_likelihood_diff" => log_likelihood_diff_vec, "log_likelihood_diff_short" => log_likelihood_diff_vec_short)
+end  
+
+""" MCMC procedure using aproximated risk functional """
 function MCMC_approx_(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Parameter, grid::Grid,N_est_c::Int,N_cond_sim::Int,N_est_d::Int)
     num_obs=size(observation.obs_x0,1)
 
