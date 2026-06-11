@@ -2,7 +2,7 @@
     simulate chain with pareto process as stationary distribution """
 function simu_specfcts_MCMC(;param::Parameter, grid::Grid, num_runs::Int)::Vector{Float64}
     #sample num_runs+1 many realizations of exp(1/α[G(s)-G(x0)-γ(s-x0)])
-    tmp = r_log_gaussian(param=param, grid=grid, num_sim=num_runs+1) 
+    tmp = r_log_gaussian_independent(param=param, grid=grid, num_sim=num_runs+1) 
     old_value = tmp[1]
     #use samples in MCMC approach to converge to stationary distrib W^(r)
     for trial in 1:num_runs
@@ -17,7 +17,7 @@ function simu_specfcts_MCMC(;param::Parameter, grid::Grid, num_runs::Int)::Vecto
     return old_value*=(1/(1-rand()))^(1/param.α)
 end
 
-#TODO calculate extremal dependence/upper tail dependence coefficient
+
 
 #simu_specfcts_MCMC(param=param, grid=grid, num_runs=1000)
 

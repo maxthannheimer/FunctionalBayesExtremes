@@ -50,9 +50,24 @@ function cov_mat_for_vectors(;coord_mat_a::Matrix{Float64}, coord_mat_b::Matrix{
     cov_mat
 end
 
+""" simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
+#simulate numrep many exp(1/α[G(s)-G(x0)-γ(s-x0)])
+#this is the independent original version, used for data generation"""
+
+function r_log_gaussian_independent(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
+    cov_mat=cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)
+    res = FBM_simu_fast_independent(param=param, grid=grid, num_sim=num_sim)
+    trend=vec_vario_grid(param=param,grid=grid)
+    for i in 1:num_sim
+            res[i] = exp.(1/param.α*(res[i] - trend .-res[i][grid.x0])) #variogram
+    end
+    res
+end
 
 """ simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
-#simulate numrep many exp(1/α[G(s)-G(x0)-γ(s-x0)])"""
+#simulate numrep many exp(1/α[G(s)-G(x0)-γ(s-x0)])
+#this uses dependent samples in the fbm simulation"""
+
 function r_log_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
     cov_mat=cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)
     res = FBM_simu_fast(param=param, grid=grid, num_sim=num_sim)
@@ -63,15 +78,34 @@ function r_log_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vec
     res
 end
 
-function r_log_gaussian_alpha(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
-    cov_mat=cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)
-    res = FBM_simu_fast(param=param, grid=grid, num_sim=num_sim)
-    trend=vec_vario_grid(param=param,grid=grid)
+
+""" simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
+#simulate numrep many exp(1/α[G(s)-G(x0)-γ(s-x0)])
+#simulater for two parameter sets at once"""
+function r_log_gaussian_double_param(;param_a::Parameter,param_b::Parameter,grid::Grid,num_sim::Int) :: Tuple{Vector{Vector{Float64}},Vector{Vector{Float64}}}
+    cov_mat_a=cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param_a, coord_x0=grid.coord_x0)
+    cov_mat_b=cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param_b, coord_x0=grid.coord_x0)
+    res_a,res_b = FBM_simu_fast_double_param(param_a=param_a,param_b=param_b, grid=grid, num_sim=num_sim)
+    trend_a=vec_vario_grid(param=param_a,grid=grid)
+    trend_b=vec_vario_grid(param=param_b,grid=grid)
     for i in 1:num_sim
-            res[i] = exp.(1/param.α*(res[i] - trend .-res[i][grid.x0])) #variogram
+            res_a[i] = exp.(1/param_a.α*(res[i] - trend .-res[i][grid.x0])) #variogram
+            res_b[i] = exp.(1/param_b.α*(res[i] - trend .-res[i][grid.x0]))
     end
-    res
+    res_a,res_b
 end
+
+
+
+# function r_log_gaussian_alpha(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
+#     cov_mat=cov_mat_for_vectors(coord_mat_a=grid.coord_fine, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)
+#     res = FBM_simu_fast(param=param, grid=grid, num_sim=num_sim)
+#     trend=vec_vario_grid(param=param,grid=grid)
+#     for i in 1:num_sim
+#             res[i] = exp.(1/param.α*(res[i] - trend .-res[i][grid.x0])) #variogram
+#     end
+#     res
+# end
 
 """ simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
 simulate numrep many [G(s)-G(x0)-γ(s-x0)] """
@@ -84,6 +118,21 @@ function r_gaussian(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{
     res
 end
 
+""" simulation of gaussian random vectors with brown resnick covariance, using the circulant embedding method.
+#simulate numrep many [G(s)-G(x0)-γ(s-x0)] 
+#double parameter version"""
+function r_gaussian_double_param(;param_a::Parameter,param_b::Parameter,grid::Grid,num_sim::Int) :: Tuple{Vector{Vector{Float64}},Vector{Vector{Float64}}}
+    res_a,res_b = FBM_simu_fast_double_param(param_a=param_a,param_b=param_b, grid=grid, num_sim=num_sim)
+    trend_a=vec_vario_grid(param=param_a,grid=grid)
+    trend_b=vec_vario_grid(param=param_b,grid=grid)
+    for i in 1:num_sim
+            res_a[i] = res_a[i] - trend_a .-res_a[i][grid.x0]
+            res_b[i] = res_b[i] - trend_b .-res_b[i][grid.x0]
+    end
+    res_a,res_b
+end
+
+
 """ simulation of log gaussian random vectors with brown resnick covariance, using the circulant embedding method.
 simulate numrep many W(s)=exp(1/α [G(s)-G(x0)-γ(s-x0)] )"""
 function r_W(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64}}
@@ -93,6 +142,20 @@ function r_W(;param::Parameter,grid::Grid,num_sim::Int) :: Vector{Vector{Float64
             res[i] = exp.(1/param.α*( res[i] - trend .-res[i][grid.x0])) #same as r_gaussian but with exp and 1/alpha
     end
     res
+end
+
+""" simulation of log gaussian random vectors with brown resnick covariance, using the circulant embedding method.
+simulate numrep many W(s)=exp(1/α [G(s)-G(x0)-γ(s-x0)] )
+double parameter version"""
+function r_W_double_param(;param_a::Parameter,param_b::Parameter,grid::Grid,num_sim::Int) :: Tuple{Vector{Vector{Float64}},Vector{Vector{Float64}}}
+    res_a,res_b = FBM_simu_fast_double_param(param_a=param_a,param_b=param_b, grid=grid, num_sim=num_sim)
+    trend_a=vec_vario_grid(param=param_a,grid=grid)
+    trend_b=vec_vario_grid(param=param_b,grid=grid)
+    for i in 1:num_sim
+            res_a[i] = exp.(1/param_a.α*( res_a[i] - trend_a .-res_a[i][grid.x0])) #same as r_gaussian but with exp and 1/alpha
+            res_b[i] = exp.(1/param_b.α*( res_b[i] - trend_b .-res_b[i][grid.x0]))
+    end
+    res_a,res_b
 end
 
 
@@ -186,6 +249,23 @@ function r_cond_gaussian(;param::Parameter,grid::Grid,num_sim::Int,gaussian_obse
     res
 end
 
+""" conditional gaussian simulation (conditioning on transformed observations on coarse grid), result is still Gaussian
+double parameter version"""
+
+#TODO: Finish here with double param implementation
+function r_cond_gaussian_double_param(;param_a::Parameter,param_b::Parameter,grid::Grid,num_sim::Int,gaussian_observation::Vector{Vector{Float64}}) :: Tuple{Vector{Vector{Vector{Float64}}},Vector{Vector{Vector{Float64}}}}
+    #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
+    sigma_yy_inv = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param, coord_x0=grid.coord_x0 )) #hier 
+    sigma_zy= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)'   
+    res=[r_gaussian(param=param, grid=grid, num_sim=num_sim) for j in 1:size(gaussian_observation,1)]
+        #grid.coord_fine,param,grid.coord_x0,num_sim,alpha) for j in 1:size(cond_obs,1)]
+    for j in 1:size(gaussian_observation,1)
+        for i in 1:num_sim
+            res[j][i] =res[j][i] + sigma_zy*(sigma_yy_inv*(gaussian_observation[j]-res[j][i][grid.rows_coord_coarse])) #variogram
+        end
+    end
+    res
+end
 
 function observation_trafo(;observation::Observation, param::Parameter)::Vector{Vector{Float64}}
     #transform observation to G space, since we observe W=exp(1/α G)=X/X_0 <=> G=α(log(X)-log(X_0)) 

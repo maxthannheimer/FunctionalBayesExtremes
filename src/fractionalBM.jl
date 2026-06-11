@@ -198,7 +198,9 @@ function FBM_simu_fast(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector
 end
 
 """ Function to generate a fractional Brownian motion samples using circulant embedding method """
+
 """ sampling for proposed and current param with the same gaussian samples to prevent influence of sampling variability on acceptance decision, i.e. using same gaussian samples to construct the proposed param likelihood and the current one """
+
 """ and like above dependent simulations, i.e. both the real and the imaginary part of the gaussian are used, but they are dependend, so not twice as many simulations for free, but more efficient than independent simulations """ 
 function FBM_simu_fast_double_param(;param_a::Parameter,param_b::Parameter, grid::Grid,num_sim::Int)::Tuple{Vector{Vector{Float64}},Vector{Vector{Float64}}}
     gridsize=grid.gridsize
@@ -268,11 +270,21 @@ function FBM_simu_fast_double_param(;param_a::Parameter,param_b::Parameter, grid
         #make correction for embedding with a term c_2*r^2
         X_grid_comp = [i for i in tx[1:gridsize], j in tx[1:gridsize]].-tx[1]
         Y_grid_comp = [j for i in tx[1:gridsize], j in tx[1:gridsize]].-tx[1]
-    
-        res_a[trial]=vec((field1 + (X_grid_comp*randn()+Y_grid_comp*randn() ) .*sqrt(2*c_2))')
-        res_a[trial+num_sim÷2]=vec((field2 + (X_grid_comp*randn()+Y_grid_comp*randn() ) .*sqrt(2*c_2))')
+
+        tmp_rand=randn()
+        another_tmp_rand=randn()
+        tmp_2_rand=randn()
+        another_tmp_2_rand=randn()
+        
+        # res_a[trial]=vec((field1 + (X_grid_comp*randn()+Y_grid_comp*randn() ) .*sqrt(2*c_2))')
+        # res_a[trial+num_sim÷2]=vec((field2 + (X_grid_comp*randn()+Y_grid_comp*randn() ) .*sqrt(2*c_2))')
+        res_a[trial]=vec((field1_a + (X_grid_comp*tmp_rand+Y_grid_comp*another_tmp_rand ) .*sqrt(2*c_2_a))')
+        res_a[trial+num_sim÷2]=vec((field2_a + (X_grid_comp*tmp_2_rand+Y_grid_comp*another_tmp_2_rand ) .*sqrt(2*c_2_a))')
+            
+        res_b[trial]=vec((field1_b + (X_grid_comp*tmp_rand+Y_grid_comp*another_tmp_rand ) .*sqrt(2*c_2_b))')
+        res_b[trial+num_sim÷2]=vec((field2_b + (X_grid_comp*tmp_2_rand+Y_grid_comp*another_tmp_2_rand ) .*sqrt(2*c_2_b))')
     end
 
     #(c_sqrt.*res1,c_sqrt.*res2)
-    c_sqrt_a.*res_a
+    c_sqrt_a.*res_a,c_sqrt_b.*res_b
 end

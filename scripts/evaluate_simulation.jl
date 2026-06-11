@@ -8,7 +8,8 @@ using PrettyTables
 
 ####################
 #set name of the simulation results folder
-date_string="2026_05_06"
+#date_string="2026_05_06"
+date_string="2026_06_08"
 ####################
 N_burn_in=2000
 quantile_val=0.1
@@ -203,8 +204,8 @@ column_labels =[["Parameter", "RMSE_Mean", "RMSE_Median", "BIAS_Mean", "BIAS_Med
 pretty_table(data; column_labels)
 
 
-
-
+data_old=data
+pretty_table(data_old; column_labels)
 """Plotting α,β and c for different realisations of the MCMC and MCMC_approx chains"""
 
 using Plots
