@@ -1,6 +1,7 @@
 using JLD2
 using Random
 include("FunctionalBayesExtremes_MODULE.jl")
+#include("/home/thannhmx/.julia/dev/FunctionalBayesExtremes/src/FunctionalBayesExtremes_MODULE.jl")
 using .FunctionalBayesExtremes_MODULE
 
 
@@ -18,7 +19,7 @@ dict_MCMC=MCMC_(N_MCMC=N_MCMC,observation=observation,threshold=1.0,param=param,
 dict_MCMC_approx=MCMC_approx_(N_MCMC=N_MCMC,observation=observation,threshold=1.0,param=param, grid=grid,N_est_c=25000,N_cond_sim=400,N_est_d=400)
 )
 
-save("Simulations_MCMC_test_"*randstring(20)*".jld2", "dict_MCMC",dict_MCMC,"dict_MCMC_approx",dict_MCMC_approx,"grid",grid,"param",param,"observation",observation)
+save("Simulations_MCMC_single_param_"*randstring(20)*".jld2", "dict_MCMC",dict_MCMC,"dict_MCMC_approx",dict_MCMC_approx,"grid",grid,"param",param,"observation",observation)
 end
 
 

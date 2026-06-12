@@ -253,18 +253,27 @@ end
 double parameter version"""
 
 #TODO: Finish here with double param implementation
-function r_cond_gaussian_double_param(;param_a::Parameter,param_b::Parameter,grid::Grid,num_sim::Int,gaussian_observation::Vector{Vector{Float64}}) :: Tuple{Vector{Vector{Vector{Float64}}},Vector{Vector{Vector{Float64}}}}
+function r_cond_gaussian_double_param(;param_a::Parameter,param_b::Parameter,grid::Grid,num_sim::Int,gaussian_observation_a::Vector{Vector{Float64}},gaussian_observation_b::Vector{Vector{Float64}}) :: Tuple{Vector{Vector{Vector{Float64}}},Vector{Vector{Vector{Float64}}}}
     #first dim number of simulated or observed data repetitions, second dim num_rep (how many simulations are wanted), third dim site in fine grid
-    sigma_yy_inv = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param, coord_x0=grid.coord_x0 )) #hier 
-    sigma_zy= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param, coord_x0=grid.coord_x0)'   
-    res=[r_gaussian(param=param, grid=grid, num_sim=num_sim) for j in 1:size(gaussian_observation,1)]
+    sigma_yy_inv_a = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param_a, coord_x0=grid.coord_x0 )) #hier 
+    sigma_zy_a= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param_a, coord_x0=grid.coord_x0)'   
+    sigma_yy_inv_b = inv(cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_coarse,  param=param_b, coord_x0=grid.coord_x0 )) #hier 
+    sigma_zy_b= cov_mat_for_vectors(coord_mat_a=grid.coord_coarse, coord_mat_b=grid.coord_fine, param=param_b, coord_x0=grid.coord_x0)'   
+    res_a=[[[NaN for k in 1:grid.gridsize^2 ] for i in 1:num_sim ] for j in 1:size(gaussian_observation_a,1)]
+    res_b=[[[NaN for k in 1:grid.gridsize^2 ] for i in 1:num_sim ] for j in 1:size(gaussian_observation_b,1)]
+
+    for j in 1:size(gaussian_observation_a,1)
+        res_a[j],res_b[j]=FunctionalBayesExtremes.r_gaussian_double_param(param_a=param_a, param_b=param_b, grid=grid, num_sim=num_sim) 
+    end
+    #res=[r_gaussian_double_param(param_a=param_a, param_b=param_b, grid=grid, num_sim=num_sim) for j in 1:size(gaussian_observation,1)]
         #grid.coord_fine,param,grid.coord_x0,num_sim,alpha) for j in 1:size(cond_obs,1)]
-    for j in 1:size(gaussian_observation,1)
+    for j in 1:size(gaussian_observation_a,1)
         for i in 1:num_sim
-            res[j][i] =res[j][i] + sigma_zy*(sigma_yy_inv*(gaussian_observation[j]-res[j][i][grid.rows_coord_coarse])) #variogram
+            res_a[j][i] =res_a[j][i] + sigma_zy_a*(sigma_yy_inv_a*(gaussian_observation_a[j]-res_a[j][i][grid.rows_coord_coarse])) #variogram
+            res_b[j][i] =res_b[j][i] + sigma_zy_b*(sigma_yy_inv_b*(gaussian_observation_b[j]-res_b[j][i][grid.rows_coord_coarse])) #variogram
         end
     end
-    res
+    res_a,res_b
 end
 
 function observation_trafo(;observation::Observation, param::Parameter)::Vector{Vector{Float64}}
@@ -272,11 +281,30 @@ function observation_trafo(;observation::Observation, param::Parameter)::Vector{
     [param.α.*  (log.(observation.obs_data[j,:]).-log(observation.obs_x0[j])) for j in 1:size(observation.obs_data,1)]
 end
 
+function observation_trafo_double_param(;observation::Observation, param_a::Parameter, param_b::Parameter)::Tuple{Vector{Vector{Float64}},Vector{Vector{Float64}}}
+    #transform observation to G space, since we observe W=exp(1/α G)=X/X_0 <=> G=α(log(X)-log(X_0)) 
+    gaussian_obs_a=[param_a.α.*  (log.(observation.obs_data[j,:]).-log(observation.obs_x0[j])) for j in 1:size(observation.obs_data,1)]
+    gaussian_obs_b=[param_b.α.*  (log.(observation.obs_data[j,:]).-log(observation.obs_x0[j])) for j in 1:size(observation.obs_data,1)]
+    gaussian_obs_a, gaussian_obs_b
+end
+
 #Simulation of W via conditional Gaussian simulation of G and transformation W=exp(1/α G)
 function r_cond_W(;param::Parameter,grid::Grid,num_sim::Int,observation::Observation) :: Vector{Vector{Vector{Float64}}}
     tmp = r_cond_gaussian(param=param, grid=grid, num_sim=num_sim,gaussian_observation=observation_trafo(observation=observation,param=param))
     #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
     return [[exp.(1/param.α.* w) for w in v]  for v in tmp] 
+end
+
+#Simulation of W via conditional Gaussian simulation of G and transformation W=exp(1/α G)
+#double parameter version
+function r_cond_W_double_param(;param_a::Parameter, param_b::Parameter, grid::Grid, num_sim::Int, observation::Observation) :: Tuple{Vector{Vector{Vector{Float64}}}, Vector{Vector{Vector{Float64}}}}
+    gaussian_obs_a, gaussian_obs_b = observation_trafo_double_param(observation=observation, param_a=param_a, param_b=param_b)
+    tmp_a = r_cond_gaussian(param=param_a, grid=grid, num_sim=num_sim, gaussian_observation=gaussian_obs_a)
+    tmp_b = r_cond_gaussian(param=param_b, grid=grid, num_sim=num_sim, gaussian_observation=gaussian_obs_b)
+    #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
+    w_a = [[exp.(1/param_a.α.* w) for w in v]  for v in tmp_a]
+    w_b = [[exp.(1/param_b.α.* w) for w in v]  for v in tmp_b]
+    w_a, w_b
 end
 
 using Distributions
@@ -348,6 +376,48 @@ function exceed_cond_sim_and_l4(;num_runs::Int,observation::Observation,threshol
         exceed_obs=Observation(observation.sim_data, observation.obs_data[ind,:], observation.obs_x0[ind])
         l4=sum(log.(res_est_prob[ind]))
         (exceed_obs,res_ell_X,l4)
+    end
+end
+
+
+""" exceedance selection among all observations and l4_etsimation,
+    output:
+    Observation object containing only exceedances over threshold
+    risk functional value for each observation
+    l4 estimate for exceedance observations
+    double parameter version"""
+
+function exceed_cond_sim_and_l4_double_param(;num_runs::Int,observation::Observation,threshold::Float64, param_a::Parameter, param_b::Parameter, grid::Grid )::Tuple{Observation, Vector{Float64},Float64,Float64}
+    num_obs=size(observation.obs_data,1)
+    tmp_exp_a,tmp_exp_b = r_cond_W_double_param(param_a=param_a, param_b=param_b, grid=grid, num_sim=num_runs+1,observation=observation)
+    #Here Gaussian simulations of G are transformed to process W via W=exp(1/α G)
+    res_ell_X = [0.0 for i in 1:num_obs] 
+    N_est_d =num_runs+1
+    #l4 estimation
+    res_est_prob_a =l_4_fun_cond_W_input(exceedance_observation=observation, threshold=threshold, N_est_d=N_est_d, cond_W_simu=tmp_exp_a)
+    res_est_prob_b =l_4_fun_cond_W_input(exceedance_observation=observation, threshold=threshold, N_est_d=N_est_d, cond_W_simu=tmp_exp_b)
+   #old_value=r_cond_log_gaussian(observation_data[1,:],observation_x0[1], coord_fine,coord_coarse,param,row_x0)
+   for i in 1:num_obs #direkt num_obs viele simulations 
+        old_value = tmp_exp_a[i][1]
+        for trial in 1:num_runs
+            proposal = tmp_exp_a[i][trial+1]
+            acceptance_rate = min(1,mean(proposal)^param_a.α/mean(old_value)^param_a.α)   
+            if (rand()< acceptance_rate)
+                old_value=proposal
+            end
+        end
+        res_ell_X[i]=observation.obs_x0[i]*mean(old_value)
+    end
+    if sum(res_ell_X.>threshold)==0
+        Base._throw_argerror("not a single threshold exceedance")
+    else
+        #likelihood calculation and param updates
+        #find all threshold exccedances and calculate the log of them
+        ind=findall(res_ell_X.>threshold)
+        exceed_obs=Observation(observation.sim_data, observation.obs_data[ind,:], observation.obs_x0[ind])
+        l4_a=sum(log.(res_est_prob_a[ind]))
+        l4_b=sum(log.(res_est_prob_b[ind]))
+        (exceed_obs,res_ell_X,l4_a,l4_b)
     end
 end
 
@@ -480,6 +550,69 @@ function l_2_fun(;param::Parameter, grid::Grid, N_est_c::Int,N_est_c_lim::Int, q
                 mean_r_W_alpha_sample = mean(r_W_alpha_sample)
                 @warn "N has reached upper limit of $N_est_c_lim , might fluctuate a lot, sufficently large N would be $N_suggested"
                 return -Number_of_exceed*log( mean_r_W_alpha_sample)
+            end
+        end
+    end
+
+ end
+
+ """  l2= est(1/C) * size(obs)  """
+
+""" we use a flexible number of simulations for the estimation adjusted by the sample variance to get more accuracy when needed """
+
+"""double parameter version"""
+
+function l_2_fun_double_param(;param_a::Parameter, param_b::Parameter, grid::Grid, N_est_c::Int,N_est_c_lim::Int, quot_bound::Float64,exceedance_observation::Observation)::Tuple{Float64,Float64}
+    #Limit for samples to estimate C, if this is reached, the fucntion will use this as N_est_c
+    Number_of_exceed = size(exceedance_observation.obs_x0,1)
+
+    N=N_est_c #initial number of samples
+    
+    tmp_a=0 #temporary variable to store the samples start with integer zero to initialize the variable via naive if clause
+    tmp_b=0
+    N_sampled=0 #number of samples already taken
+    
+
+
+    while(true)
+        if tmp_a==0
+            tmp_a,tmp_b = r_W_double_param(param_a = param_a, param_b = param_b, grid = grid, num_sim = N-N_sampled)  
+            #r_log_gaussian_vec_dependent(coord_fine,param,row_x0, N-N_sampled,alpha) #initial sampling
+        else
+            #tmp = vcat(tmp,r_W(param = param, grid = grid, num_sim = N-N_sampled)) #we want N samples, so we sample N-N_sampled more
+            another_tmp_a,another_tmp_b = r_W_double_param(param_a = param_a, param_b = param_b, grid = grid, num_sim = N-N_sampled)
+            tmp_a = vcat(tmp_a,another_tmp_a)
+            tmp_b = vcat(tmp_b,another_tmp_b)
+        end
+        N_sampled = N #keep track of how many samples we have taken
+        #println("N_sampled: ", N_sampled)
+        r_W_alpha_sample_a =[mean( tmp_a[i] )^(param_a.α) for i in 1:N] #N samples of r(W)^α
+        mean_r_W_alpha_sample_a = mean(r_W_alpha_sample_a) #mean of samples,i.e. empiricalmean estimate of r(W)^α
+        r_W_alpha_sample_b =[mean( tmp_b[i] )^(param_b.α) for i in 1:N] #N samples of r(W)^α
+        mean_r_W_alpha_sample_b = mean(r_W_alpha_sample_b) #mean of samples,i.e. empiricalmean estimate of r(W)^α
+        if (1/mean_r_W_alpha_sample_a*sqrt(1/N*var(r_W_alpha_sample_a)) < quot_bound) && (1/mean_r_W_alpha_sample_b*sqrt(1/N*var(r_W_alpha_sample_b)) < quot_bound) #if the quotient between empirical variance and empirical mean is small enough, we can stop sampling
+            return -Number_of_exceed*log( mean_r_W_alpha_sample_a), -Number_of_exceed*log( mean_r_W_alpha_sample_b)  
+        else
+            #otherwise we make N so big that the quotient is small enough
+            N_a=Int(round(1/(mean_r_W_alpha_sample_a)^2*var(r_W_alpha_sample)/ quot_bound^2)+1)
+            N_b=Int(round(1/(mean_r_W_alpha_sample_b)^2*var(r_W_alpha_sample_b)/ quot_bound^2)+1)
+            N=max(N_a,N_b)
+            #println("N: ", N)
+            #if limit is reached, we stop sampling and estimate with N_est_c_lim samples
+            if N>=N_est_c_lim
+                N_suggested = N
+                N=N_est_c_lim
+                #tmp = vcat(tmp,r_log_gaussian_vec_dependent(coord_fine,param,row_x0, N-N_sampled,alpha))
+                #r_W_alpha_sample =  [mean( tmp[i] )^(alpha) for i in 1:N]
+                another_tmp_a,another_tmp_b = r_W_double_param(param_a = param_a, param_b = param_b, grid = grid, num_sim = N-N_sampled)
+                tmp_a = vcat(tmp_a,another_tmp_a)
+                tmp_b = vcat(tmp_b,another_tmp_b)
+                r_W_alpha_sample_a =[mean( tmp_a[i] )^(param_a.α) for i in 1:N] #N samples of r(W)^α
+                mean_r_W_alpha_sample_a = mean(r_W_alpha_sample_a) #mean of samples,i.e. empiricalmean estimate of r(W)^α
+                r_W_alpha_sample_b =[mean( tmp_b[i] )^(param_b.α) for i in 1:N] #N samples of r(W)^α
+                mean_r_W_alpha_sample_b = mean(r_W_alpha_sample_b) #mean of samples,i.e. empiricalmean estimate of r(W)^α
+                @warn "N has reached upper limit of $N_est_c_lim , might fluctuate a lot, sufficently large N would be $N_suggested"
+                return -Number_of_exceed*log( mean_r_W_alpha_sample_a), -Number_of_exceed*log( mean_r_W_alpha_sample_b)
             end
         end
     end

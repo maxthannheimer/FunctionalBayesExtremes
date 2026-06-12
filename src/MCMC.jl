@@ -1,4 +1,4 @@
-export MCMC_, MCMC_approx_
+export MCMC_, MCMC_approx_, MCMC_double_param
 
 
 #this function proposes a new value uniformly distributed in a 2 eps window in between min_val and max_val arround the old_param
@@ -193,13 +193,13 @@ function MCMC_double_param(;N_MCMC::Int,observation::Observation,threshold::Floa
         beta_eps,old_interval,new_interval=uniform_proposal(param_vec[trial].β,eps_beta,0.0,2.0)
         param_eps=Parameter(c=gaussian_proposal(param_vec[trial].c,eps_c),β=beta_eps,α=gaussian_proposal(param_vec[trial].α,eps_alpha))
 
-        (exceedance_observation, res_ell_X_vec[trial],l4) = exceed_cond_sim_and_l4(num_runs=N_cond_sim, observation=observation, threshold=threshold, param=param_vec[trial], grid=grid )
-
+        (exceedance_observation, res_ell_X_vec[trial],l4_a,l4_b) = exceed_cond_sim_and_l4_double_param(num_runs=N_cond_sim, observation=observation, threshold=threshold, param_a=param_vec[trial], param_b=param_eps, grid=grid )
+        l2_a,l2_b=l_2_fun_double_param(param_a=param_vec[trial], param_b=param_eps, grid=grid, N_est_c=N_est_c, N_est_c_lim=N_est_c_lim, quot_bound=quot_bound, exceedance_observation=exceedance_observation)
        
 
       
         l1=l_1_fun(param=param_vec[trial], grid=grid,exceedance_observation=exceedance_observation)   
-        l2=l_2_fun(param=param_vec[trial], grid=grid, N_est_c=N_est_c, N_est_c_lim=N_est_c_lim, quot_bound=quot_bound, exceedance_observation=exceedance_observation)
+        #l2=l_2_fun(param=param_vec[trial], grid=grid, N_est_c=N_est_c, N_est_c_lim=N_est_c_lim, quot_bound=quot_bound, exceedance_observation=exceedance_observation)
         l3=l_3_fun(exceedance_observation=exceedance_observation, param=param_vec[trial], threshold=1.0)
         #l4=l_4_fun(exceedance_observation=exceedance_observation, threshold=1.0, param=param_vec[trial], grid=grid ,N_est_d=N_est_d)
         #l4 is already calculated in the exceed_cond_sim_and_l4 function, so we can save some time by not calculating it again here
@@ -208,19 +208,19 @@ function MCMC_double_param(;N_MCMC::Int,observation::Observation,threshold::Floa
 
 
         prior = log_likehood_log_gauss_1d_non_normalized(param_vec[trial].c,0.0,1.5)+log_likehood_log_gauss_1d_non_normalized(param_vec[trial].α,0.0,1.0)
-        log_likelihood_old=sum([l1,l2,l3,l4,prior,-log(old_interval)]) #-log interval length of uniform proposal for beta
+        log_likelihood_old=sum([l1,l2_a,l3,l4_a,prior,-log(old_interval)]) #-log interval length of uniform proposal for beta
       
         l1=l_1_fun(param=param_eps, grid=grid,exceedance_observation=exceedance_observation)   
-        l2=l_2_fun(param=param_eps, grid=grid, N_est_c=N_est_c, N_est_c_lim=N_est_c_lim, quot_bound=quot_bound, exceedance_observation=exceedance_observation)
+        #l2=l_2_fun(param=param_eps, grid=grid, N_est_c=N_est_c, N_est_c_lim=N_est_c_lim, quot_bound=quot_bound, exceedance_observation=exceedance_observation)
         l3=l_3_fun(exceedance_observation=exceedance_observation, param=param_eps, threshold=1.0)
-        l4=l_4_fun(exceedance_observation=exceedance_observation, threshold=1.0, param=param_eps, grid=grid ,N_est_d=N_cond_sim+1)
+        #l4=l_4_fun(exceedance_observation=exceedance_observation, threshold=1.0, param=param_eps, grid=grid ,N_est_d=N_cond_sim+1)
 
 
 
 
         prior = log_likehood_log_gauss_1d_non_normalized(param_eps.c,0.0,1.5)+log_likehood_log_gauss_1d_non_normalized(param_eps.α,0.0,1.0)
 
-        log_likelihood_new=sum([l1,l2,l3,l4,prior,-log(new_interval)]) #-log interval length of uniform proposal for beta
+        log_likelihood_new=sum([l1,l2_b,l3,l4_b,prior,-log(new_interval)]) #-log interval length of uniform proposal for beta
 
         #MCMC update of param according to acceptance rate calculated with old and new likelihoods
         #update and safe param after MCMC step
