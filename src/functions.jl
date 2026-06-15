@@ -594,7 +594,7 @@ function l_2_fun_double_param(;param_a::Parameter, param_b::Parameter, grid::Gri
             return -Number_of_exceed*log( mean_r_W_alpha_sample_a), -Number_of_exceed*log( mean_r_W_alpha_sample_b)  
         else
             #otherwise we make N so big that the quotient is small enough
-            N_a=Int(round(1/(mean_r_W_alpha_sample_a)^2*var(r_W_alpha_sample)/ quot_bound^2)+1)
+            N_a=Int(round(1/(mean_r_W_alpha_sample_a)^2*var(r_W_alpha_sample_a)/ quot_bound^2)+1)
             N_b=Int(round(1/(mean_r_W_alpha_sample_b)^2*var(r_W_alpha_sample_b)/ quot_bound^2)+1)
             N=max(N_a,N_b)
             #println("N: ", N)
