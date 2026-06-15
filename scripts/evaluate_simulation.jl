@@ -8,8 +8,10 @@ using PrettyTables
 
 ####################
 #set name of the simulation results folder
-#date_string="2026_05_06"
-date_string="2026_06_08"
+date_string="2026_05_06"
+#date_string="2026_06_08"
+#date_string="2026_06_12_double_param"
+#date_string="2026_06_12_single_param"
 ####################
 N_burn_in=2000
 quantile_val=0.1

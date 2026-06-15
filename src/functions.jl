@@ -358,7 +358,7 @@ function exceed_cond_sim_and_l4(;num_runs::Int,observation::Observation,threshol
    #old_value=r_cond_log_gaussian(observation_data[1,:],observation_x0[1], coord_fine,coord_coarse,param,row_x0)
    for i in 1:num_obs #direkt num_obs viele simulations 
         old_value = tmp_exp[i][1]
-        for trial in 1:num_runs
+        for trial in 1:(num_runs÷2) #hier halbieren um nur realteil oder imaginärteil zu nehmen (unabhängig!)
             proposal = tmp_exp[i][trial+1]
             acceptance_rate = min(1,mean(proposal)^param.α/mean(old_value)^param.α)   
             if (rand()< acceptance_rate)
@@ -399,7 +399,7 @@ function exceed_cond_sim_and_l4_double_param(;num_runs::Int,observation::Observa
    #old_value=r_cond_log_gaussian(observation_data[1,:],observation_x0[1], coord_fine,coord_coarse,param,row_x0)
    for i in 1:num_obs #direkt num_obs viele simulations 
         old_value = tmp_exp_a[i][1]
-        for trial in 1:num_runs
+        for trial in 1:(num_runs÷2) #hier halbieren um nur realteil oder imaginärteil zu nehmen (unabhängig!)
             proposal = tmp_exp_a[i][trial+1]
             acceptance_rate = min(1,mean(proposal)^param_a.α/mean(old_value)^param_a.α)   
             if (rand()< acceptance_rate)

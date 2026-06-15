@@ -115,7 +115,7 @@ end
 
 function MCMC_(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Parameter, grid::Grid,N_est_c::Int,N_cond_sim::Int,N_est_d::Int)
     quot_bound=0.05
-    N_est_c_lim=2_500_000
+    N_est_c_lim=500_000
     num_obs=size(observation.obs_x0,1)
 
     param_vec = [Parameter(α=NaN, β=NaN, c=NaN) for i=1:N_MCMC+1]
@@ -175,7 +175,7 @@ end
 
 function MCMC_double_param(;N_MCMC::Int,observation::Observation,threshold::Float64,param::Parameter, grid::Grid,N_est_c::Int,N_cond_sim::Int,N_est_d::Int)
     quot_bound=0.05
-    N_est_c_lim=2_500_000
+    N_est_c_lim=500_000 #-> 500_000 
     num_obs=size(observation.obs_x0,1)
 
     param_vec = [Parameter(α=NaN, β=NaN, c=NaN) for i=1:N_MCMC+1]
