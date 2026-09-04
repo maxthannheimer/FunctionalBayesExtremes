@@ -23,6 +23,6 @@ To (locally) reproduce this project, do the following:
 This will install all necessary packages for you to be able to run the scripts and
 everything should work out of the box.
 
-In the biometrika-code folder you can find the code necessary for reproducing our simulation study. One can just run the 'run_MCMC_server.jl' to run the same simulations as on the study, without parallelization, or directly the 'start_julia_instances.sh' to run the code in parallel on a linux machine.
+In the biometrika-code folder you can find the code necessary for reproducing our simulation study. One can just run the `run_MCMC_server.jl` to run the same simulations as on the study, without parallelization, or directly the `start_julia_instances.sh` to run the code in parallel on a linux machine.
 
 
