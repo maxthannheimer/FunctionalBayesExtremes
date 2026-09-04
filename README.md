@@ -1,30 +1,28 @@
 # FunctionalBayesExtremes
 
-This code base is using the [Julia Language](https://julialang.org/) and
-[DrWatson](https://juliadynamics.github.io/DrWatson.jl/stable/)
-to make a reproducible scientific project named
+This code base is using the [Julia Language](https://julialang.org/) to make a reproducible scientific project named
 > FunctionalBayesExtremes
 
 It is authored by Max Thannheimer.
 
 To (locally) reproduce this project, do the following:
 
-0. Download this code base. Notice that raw data are typically not included in the
-   git-history and may need to be downloaded independently.
-1. Open a Julia console and do:
+0. Download this code base.
+1. Open Terminal and clone repository:
    ```
-   julia> using Pkg
-   julia> Pkg.add("DrWatson") # install globally, for using `quickactivate`
-   julia> Pkg.activate("path/to/this/project")
-   julia> Pkg.instantiate()
+   git clone https://github.com/maxthannheimer/FuncionalBayesExtremes.git
+   cd FuncionalBayesExtremes/biometrika-code
+   julia --project=.
+   ```
+2. In Julia
+   ```
+   >julia using Pkg
+   >julia Pkg.instantiate()
    ```
 
 This will install all necessary packages for you to be able to run the scripts and
-everything should work out of the box, including correctly finding local paths.
+everything should work out of the box.
 
-You may notice that most scripts start with the commands:
-```julia
-using DrWatson
-@quickactivate "FunctionalBayesExtremes"
-```
-which auto-activate the project and enable local path handling from DrWatson.
+In the biometrika-code folder you can find the code necessary for reproducing our simulation study. One can just run the [text](run_MCMC_server.jl) to run the same simulations as on the study, without parallelization, or directly the [text](start_julia_instances.sh) to run the code in parallel on a linux machine.
+
+
