@@ -1,4 +1,4 @@
-export MCMC_, MCMC_approx_, MCMC_double_param
+export MCMC_, MCMC_approx_, MCMC_double_param,gaussian_proposal
 
 
 #this function proposes a new value uniformly distributed in a 2 eps window in between min_val and max_val arround the old_param
@@ -11,7 +11,7 @@ function uniform_proposal(old_param,eps,min_val,max_val)
         old_interval=old_param+eps-min_val
     else
         new_param=rand(Uniform(old_param-eps,max_val)) # max_val-old_param-eps
-        old_interval=max_val-old_param-eps
+        old_interval=max_val-(old_param-eps)
     end
     if (new_param>min_val+eps && new_param<max_val-eps)
         new_interval=2*eps
@@ -20,7 +20,7 @@ function uniform_proposal(old_param,eps,min_val,max_val)
         new_interval=new_param+eps-min_val
     else
         # =rand(Uniform(old_param-eps,max_val)) # max_val-old_param-eps
-        new_interval=max_val-new_param-eps
+        new_interval=max_val-(new_param-eps)
     end
     return (new_param,old_interval,new_interval)
 end
@@ -28,6 +28,7 @@ end
 function gaussian_proposal(old_param,eps)
     return exp(rand(Normal(log(old_param),eps)))
 end
+
 
 function parameter_update(;param_old=param_old,param_new=param_new,log_likelihood_old=log_likelihood_old,log_likelihood_new=log_likelihood_new)
     #calculate MCMC acceptance rate a
