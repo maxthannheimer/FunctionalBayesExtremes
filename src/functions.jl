@@ -2,7 +2,8 @@
 
 """risk functional r(W) for the process W, which is defined on the fine grid"""
 #using Distributions if risk_functional==mean
-risk_functional=maximum
+using Distributions
+risk_functional=mean
 
 """ variogram of the process 
  c⋅||x||^β """
@@ -403,13 +404,13 @@ function exceed_cond_sim_and_l4_double_param(;num_runs::Int,observation::Observa
    #old_value=r_cond_log_gaussian(observation_data[1,:],observation_x0[1], coord_fine,coord_coarse,param,row_x0)
    for i in 1:num_obs #direkt num_obs viele simulations 
         old_value = tmp_exp_a[i][1]
-        for trial in 1:(num_runs÷2) #hier halbieren um nur realteil oder imaginärteil zu nehmen (unabhängig!)
+     #=   for trial in 1:(num_runs÷2) #hier halbieren um nur realteil oder imaginärteil zu nehmen (unabhängig!)
             proposal = tmp_exp_a[i][trial+1]
             acceptance_rate = min(1,risk_functional(proposal)^param_a.α/risk_functional(old_value)^param_a.α)   
             if (rand()< acceptance_rate)
                 old_value=proposal
             end
-        end
+        end =#
         res_ell_X[i]=observation.obs_x0[i]*risk_functional(old_value)
     end
     if sum(res_ell_X.>threshold)==0
