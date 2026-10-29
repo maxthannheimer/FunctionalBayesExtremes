@@ -1,6 +1,6 @@
 
-include(joinpath(@__DIR__,"..", "src", "FunctionalBayesExtremes_MODULE.jl"))
-using .FunctionalBayesExtremes_MODULE
+include(joinpath(@__DIR__,"..", "src", "FunctionalBayesExtremes.jl"))
+using .FunctionalBayesExtremes
 using PrettyTables
 using JLD2
 using Distributions
@@ -11,7 +11,7 @@ using Distributions
 #date_string="2026_05_06"
 #date_string="2026_06_08"
 #date_string="2026_08_07"
-date_string="2026_07_simulation_study"
+date_string="2026_10_22"
 #date_string="2026_06_15_single_param"
 ####################
 N_burn_in=1000
@@ -85,7 +85,7 @@ for sim_data_name in sim_data_names
 
 #here starts the actual calculation
 for file_number in 1:size(readdir(joinpath(@__DIR__, "..", "data", "exp_raw", date_string)),1)
-#file_number=1 
+#file_number=1 Joaquin
 file_string=readdir(joinpath(@__DIR__, "..", "data", "exp_raw", date_string))
     data_dict_tmp=load(joinpath(@__DIR__, "..", "data", "exp_raw", date_string, file_string[file_number]))
     param_res_dict=Dict(
@@ -143,13 +143,45 @@ pretty_table(data; column_labels)
 
 
 
-typeof(key_array[1])
+
+
+import Plots
+
+file_string=readdir(joinpath(@__DIR__, "..", "data", "exp_raw", date_string))
+file_number=1
+
+file_path=joinpath(@__DIR__, "..", "data", "exp_raw", date_string, file_string[file_number])
+data_dict_tmp=load(file_path)
+
+    plots = Vector{}(undef, 2)
+
+    plots_exceeds = Vector{}(undef, 2)
+for i in 1:2
+    sim_data_name=["dict_MCMC_approx", "dict_MCMC_double_param"][i]
+    param_res_dict=Dict(
+        "α" => [param.α for param in data_dict_tmp[sim_data_name]["param"]],
+        "β" => [param.β for param in data_dict_tmp[sim_data_name]["param"]],
+        "c" => [param.c for param in data_dict_tmp[sim_data_name]["param"]]
+    )
+
+    exceeds=data_dict_tmp[sim_data_name]["Number of exceedance"]
+
+    parameter_plots = [
+        Plots.plot(1:length(param_res_dict[key]), param_res_dict[key], label=key,
+            xlabel="Iteration", ylabel="Parameter Value",
+            title="Trace Plot of $(key) for $(sim_data_name)", legend=:topright)
+        for key in ["α", "β", "c"]
+    ]
+     exceeds_plots = [
+        Plots.plot(1:length(exceeds), exceeds, label="Exceedances",
+            xlabel="Iteration", ylabel="Number of Exceedances",
+            title="Trace Plot of Exceedances for $(sim_data_name)", legend=:topright)
+    ]
+    plots[i]=Plots.plot(parameter_plots...; layout=(3, 1), size=(1800, 900))
+    plots_exceeds[i]=Plots.plot(exceeds_plots...; layout=(1, 1), size=(1800, 900))
+end
 
 
 
-
-
-
-
-
-
+Plots.plot(plots[1], plots[2]; layout=(1, 2), size=(1800, 1800))
+Plots.plot(plots_exceeds[1], plots_exceeds[2]; layout=(1, 2), size=(1800, 900))

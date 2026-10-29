@@ -1,5 +1,9 @@
 """ Here different functions are defined, which are used in the rest of the code. """
 
+"""risk functional r(W) for the process W, which is defined on the fine grid"""
+#using Distributions if risk_functional==mean
+risk_functional=maximum
+
 """ variogram of the process 
  c⋅||x||^β """
 function vario(;coord::Vector{Float64},param::Parameter)::Float64
@@ -323,12 +327,12 @@ function exceed_cond_sim(;num_runs::Int,observation::Observation,threshold::Floa
         old_value = tmp_exp[i][1]
         for trial in 1:num_runs
             proposal = tmp_exp[i][trial+1]
-            acceptance_rate = min(1,mean(proposal)^param.α/mean(old_value)^param.α)   
+            acceptance_rate = min(1,risk_functional(proposal)^param.α/risk_functional(old_value)^param.α)   
             if (rand()< acceptance_rate)
                 old_value=proposal
             end
         end
-        res_ell_X[i]=observation.obs_x0[i]*mean(old_value)
+        res_ell_X[i]=observation.obs_x0[i]*risk_functional(old_value)
     end
     if sum(res_ell_X.>threshold)==0
         Base._throw_argerror("not a single threshold exceedance")
@@ -360,12 +364,12 @@ function exceed_cond_sim_and_l4(;num_runs::Int,observation::Observation,threshol
         old_value = tmp_exp[i][1]
         for trial in 1:(num_runs÷2) #hier halbieren um nur realteil oder imaginärteil zu nehmen (unabhängig!)
             proposal = tmp_exp[i][trial+1]
-            acceptance_rate = min(1,mean(proposal)^param.α/mean(old_value)^param.α)   
+            acceptance_rate = min(1,risk_functional(proposal)^param.α/risk_functional(old_value)^param.α)   
             if (rand()< acceptance_rate)
                 old_value=proposal
             end
         end
-        res_ell_X[i]=observation.obs_x0[i]*mean(old_value)
+        res_ell_X[i]=observation.obs_x0[i]*risk_functional(old_value)
     end
     if sum(res_ell_X.>threshold)==0
         Base._throw_argerror("not a single threshold exceedance")
@@ -401,12 +405,12 @@ function exceed_cond_sim_and_l4_double_param(;num_runs::Int,observation::Observa
         old_value = tmp_exp_a[i][1]
         for trial in 1:(num_runs÷2) #hier halbieren um nur realteil oder imaginärteil zu nehmen (unabhängig!)
             proposal = tmp_exp_a[i][trial+1]
-            acceptance_rate = min(1,mean(proposal)^param_a.α/mean(old_value)^param_a.α)   
+            acceptance_rate = min(1,risk_functional(proposal)^param_a.α/risk_functional(old_value)^param_a.α)   
             if (rand()< acceptance_rate)
                 old_value=proposal
             end
         end
-        res_ell_X[i]=observation.obs_x0[i]*mean(old_value)
+        res_ell_X[i]=observation.obs_x0[i]*risk_functional(old_value)
     end
     if sum(res_ell_X.>threshold)==0
         Base._throw_argerror("not a single threshold exceedance")
@@ -426,7 +430,7 @@ function exceed_cond_sim_approx(;observation::Observation,threshold::Float64)::T
     num_obs=size(observation.obs_data,1)
     res_ell_X = [0.0 for i in 1:num_obs] 
     for i in 1:num_obs #direkt num_obs viele simulations 
-        res_ell_X[i]=mean(vcat(observation.obs_data[i,:],observation.obs_x0[i]))
+        res_ell_X[i]=risk_functional(vcat(observation.obs_data[i,:],observation.obs_x0[i]))
     end
     if sum(res_ell_X.>threshold)==0
         Base._throw_argerror("not a single threshold exceedance")
@@ -450,7 +454,7 @@ function l_4_fun(;exceedance_observation:: Observation, threshold::Float64, para
     tmp_exp = r_cond_W(param=param, grid=grid, num_sim=N_est_d,observation=exceedance_observation)
     res_est_prob = [0.0 for i in 1:num_obs] 
     for i in 1:num_obs #direkt num_obs viele simulations 
-            counter = [mean(tmp_exp[i][trial]) for trial in 1:N_est_d].>threshold/exceedance_observation.obs_x0[i]
+            counter = [risk_functional(tmp_exp[i][trial]) for trial in 1:N_est_d].>threshold/exceedance_observation.obs_x0[i]
             res_est_prob[i] = sum(counter)/N_est_d
     end
     return sum(log.(res_est_prob))
@@ -463,7 +467,7 @@ function l_4_fun_cond_W_input(;exceedance_observation:: Observation, threshold::
     tmp_exp = cond_W_simu
     res_est_prob = [0.0 for i in 1:num_obs] 
     for i in 1:num_obs #direkt num_obs viele simulations 
-            counter = [mean(tmp_exp[i][trial]) for trial in 1:N_est_d].>threshold/exceedance_observation.obs_x0[i]
+            counter = [risk_functional(tmp_exp[i][trial]) for trial in 1:N_est_d].>threshold/exceedance_observation.obs_x0[i]
             res_est_prob[i] = sum(counter)/N_est_d
     end
     return res_est_prob
@@ -496,7 +500,7 @@ end
 
 function l_2_fun_direct(;param::Parameter, grid::Grid, N_est_c::Int, exceedance_observation::Observation)::Float64
     tmp = r_W(param = param, grid = grid, num_sim = N_est_c) 
-    -size(exceedance_observation.obs_x0,1) * log(mean([mean(tmp[i] 
+    -size(exceedance_observation.obs_x0,1) * log(mean([risk_functional(tmp[i] 
         )^(param.α) for i in 1:N_est_c]))  
      # minus for 1/c_l (in log)
  end
@@ -530,7 +534,7 @@ function l_2_fun(;param::Parameter, grid::Grid, N_est_c::Int,N_est_c_lim::Int, q
         end
         N_sampled = N #keep track of how many samples we have taken
         #println("N_sampled: ", N_sampled)
-        r_W_alpha_sample =[mean( tmp[i] )^(param.α) for i in 1:N] #N samples of r(W)^α
+        r_W_alpha_sample =[risk_functional( tmp[i] )^(param.α) for i in 1:N] #N samples of r(W)^α
         mean_r_W_alpha_sample = mean(r_W_alpha_sample) #mean of samples,i.e. empiricalmean estimate of r(W)^α
         if (1/mean_r_W_alpha_sample*sqrt(1/N*var(r_W_alpha_sample)) < quot_bound) #if the quotient between empirical variance and empirical mean is small enough, we can stop sampling
             return -Number_of_exceed*log( mean_r_W_alpha_sample)  
@@ -545,7 +549,7 @@ function l_2_fun(;param::Parameter, grid::Grid, N_est_c::Int,N_est_c_lim::Int, q
                 #tmp = vcat(tmp,r_log_gaussian_vec_dependent(coord_fine,param,row_x0, N-N_sampled,alpha))
                 #r_W_alpha_sample =  [mean( tmp[i] )^(alpha) for i in 1:N]
                 tmp = vcat(tmp,r_W(param = param, grid = grid, num_sim = N-N_sampled))
-                r_W_alpha_sample =  [mean( tmp[i] )^(param.α) for i in 1:N]
+                r_W_alpha_sample =  [risk_functional( tmp[i] )^(param.α) for i in 1:N]
 
                 mean_r_W_alpha_sample = mean(r_W_alpha_sample)
                 @warn "N has reached upper limit of $N_est_c_lim , might fluctuate a lot, sufficently large N would be $N_suggested"
@@ -575,6 +579,9 @@ function l_2_fun_double_param(;param_a::Parameter, param_b::Parameter, grid::Gri
 
 
     while(true)
+        if (N-N_sampled)<1
+             @warn "N-N_sampled: $(N-N_sampled) is smaller than one"
+        end
         if tmp_a==0
             tmp_a,tmp_b = r_W_double_param(param_a = param_a, param_b = param_b, grid = grid, num_sim = N-N_sampled)  
             #r_log_gaussian_vec_dependent(coord_fine,param,row_x0, N-N_sampled,alpha) #initial sampling
@@ -586,9 +593,9 @@ function l_2_fun_double_param(;param_a::Parameter, param_b::Parameter, grid::Gri
         end
         N_sampled = N #keep track of how many samples we have taken
         #println("N_sampled: ", N_sampled)
-        r_W_alpha_sample_a =[mean( tmp_a[i] )^(param_a.α) for i in 1:N] #N samples of r(W)^α
+        r_W_alpha_sample_a =[risk_functional( tmp_a[i] )^(param_a.α) for i in 1:N] #N samples of r(W)^α
         mean_r_W_alpha_sample_a = mean(r_W_alpha_sample_a) #mean of samples,i.e. empiricalmean estimate of r(W)^α
-        r_W_alpha_sample_b =[mean( tmp_b[i] )^(param_b.α) for i in 1:N] #N samples of r(W)^α
+        r_W_alpha_sample_b =[risk_functional( tmp_b[i] )^(param_b.α) for i in 1:N] #N samples of r(W)^α
         mean_r_W_alpha_sample_b = mean(r_W_alpha_sample_b) #mean of samples,i.e. empiricalmean estimate of r(W)^α
         if (1/mean_r_W_alpha_sample_a*sqrt(1/N*var(r_W_alpha_sample_a)) < quot_bound) && (1/mean_r_W_alpha_sample_b*sqrt(1/N*var(r_W_alpha_sample_b)) < quot_bound) #if the quotient between empirical variance and empirical mean is small enough, we can stop sampling
             return -Number_of_exceed*log( mean_r_W_alpha_sample_a), -Number_of_exceed*log( mean_r_W_alpha_sample_b)  
@@ -607,9 +614,9 @@ function l_2_fun_double_param(;param_a::Parameter, param_b::Parameter, grid::Gri
                 another_tmp_a,another_tmp_b = r_W_double_param(param_a = param_a, param_b = param_b, grid = grid, num_sim = N-N_sampled)
                 tmp_a = vcat(tmp_a,another_tmp_a)
                 tmp_b = vcat(tmp_b,another_tmp_b)
-                r_W_alpha_sample_a =[mean( tmp_a[i] )^(param_a.α) for i in 1:N] #N samples of r(W)^α
+                r_W_alpha_sample_a =[risk_functional( tmp_a[i] )^(param_a.α) for i in 1:N] #N samples of r(W)^α
                 mean_r_W_alpha_sample_a = mean(r_W_alpha_sample_a) #mean of samples,i.e. empiricalmean estimate of r(W)^α
-                r_W_alpha_sample_b =[mean( tmp_b[i] )^(param_b.α) for i in 1:N] #N samples of r(W)^α
+                r_W_alpha_sample_b =[risk_functional( tmp_b[i] )^(param_b.α) for i in 1:N] #N samples of r(W)^α
                 mean_r_W_alpha_sample_b = mean(r_W_alpha_sample_b) #mean of samples,i.e. empiricalmean estimate of r(W)^α
                 @warn "N has reached upper limit of $N_est_c_lim , might fluctuate a lot, sufficently large N would be $N_suggested"
                 return -Number_of_exceed*log( mean_r_W_alpha_sample_a), -Number_of_exceed*log( mean_r_W_alpha_sample_b)
@@ -625,7 +632,7 @@ function l_2_fun_double_param(;param_a::Parameter, param_b::Parameter, grid::Gri
  """ l2_approx= est_approx(1/C) * size(obs) """
 function l_2_fun_approx(;param::Parameter, grid::Grid, N_est_c::Int, exceedance_observation::Observation)::Float64
     tmp = r_W_sparse(param = param, grid = grid, num_sim = N_est_c) 
-    -size(exceedance_observation.obs_x0,1) * log(mean([mean(tmp[i] 
+    -size(exceedance_observation.obs_x0,1) * log(mean([risk_functional(tmp[i] 
         )^(param.α) for i in 1:N_est_c]))  
      # minus for 1/c_l (in log)
  end

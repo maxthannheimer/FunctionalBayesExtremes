@@ -7,13 +7,13 @@ function simu_specfcts_MCMC(;param::Parameter, grid::Grid, num_runs::Int)::Vecto
     #use samples in MCMC approach to converge to stationary distrib W^(r)
     for trial in 1:num_runs
             proposal = tmp[trial+1]
-            acceptance_rate = min(1,mean(proposal)^param.α/mean(old_value)^param.α)   
+            acceptance_rate = min(1,risk_functional(proposal)^param.α/risk_functional(old_value)^param.α)   
             if (rand()< acceptance_rate)
                 old_value=proposal
             end
     end
     #normalize sample and multiply pareto intesity to get pareto process sample
-    old_value = old_value/mean(old_value)
+    old_value = old_value/risk_functional(old_value)
     return old_value*=(1/(1-rand()))^(1/param.α)
 end
 

@@ -163,7 +163,11 @@ function FBM_simu_fast(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector
     #eig_vals=eig_vals.*(abs.(eig_vals) .> eps)
     #eig_vals=eig_vals.*(eig_vals .>= 0)
     eig_vals=sqrt.(eig_vals)
-   
+    
+    num_sim_og=num_sim
+    if isodd(num_sim)
+        num_sim=num_sim+1
+    end
     res1=[Vector{Float64}(undef,gridsize*gridsize) for i in 1:num_sim]
     #res2=[Vector{Float64}(undef,gridsize*gridsize) for i in 1:num_sim]
     #one can get two times as many simulations for free by using the imaginary and real part 
@@ -194,7 +198,7 @@ function FBM_simu_fast(;param::Parameter,grid::Grid,num_sim::Int)::Vector{Vector
     end
 
     #(c_sqrt.*res1,c_sqrt.*res2)
-    c_sqrt.*res1
+    c_sqrt.*res1[1:num_sim_og]
 end
 
 """ Function to generate a fractional Brownian motion samples using circulant embedding method """
@@ -237,6 +241,10 @@ function FBM_simu_fast_double_param(;param_a::Parameter,param_b::Parameter, grid
     eig_vals_a=sqrt.(eig_vals_a)
     eig_vals_b=sqrt.(eig_vals_b)
 
+    num_sim_og=num_sim
+    if isodd(num_sim)
+        num_sim=num_sim+1
+    end
     res_a=[Vector{Float64}(undef,gridsize*gridsize) for i in 1:num_sim]
     res_b=[Vector{Float64}(undef,gridsize*gridsize) for i in 1:num_sim]
     #res2=[Vector{Float64}(undef,gridsize*gridsize) for i in 1:num_sim]
@@ -286,5 +294,5 @@ function FBM_simu_fast_double_param(;param_a::Parameter,param_b::Parameter, grid
     end
 
     #(c_sqrt.*res1,c_sqrt.*res2)
-    c_sqrt_a.*res_a,c_sqrt_b.*res_b
+    c_sqrt_a.*res_a[1:num_sim_og],c_sqrt_b.*res_b[1:num_sim_og]
 end
